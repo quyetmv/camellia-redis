@@ -23,6 +23,45 @@ services:
     ports:
       - "63793:6379"
 
+  camellia-dashboard-mysql:
+    image: mysql:8.4
+    container_name: camellia-dashboard-mysql
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=camellia
+      - MYSQL_DATABASE=camellia
+    volumes:
+      - camellia-dashboard-mysql-data:/var/lib/mysql
+    ports:
+      - "13306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-pcamellia"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  camellia-dashboard-redis:
+    image: redis:7.2-alpine
+    container_name: camellia-dashboard-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6389:6379"
+
+  camellia-dashboard:
+    build:
+      context: ./dashboard
+    container_name: camellia-dashboard
+    restart: unless-stopped
+    depends_on:
+      camellia-dashboard-mysql:
+        condition: service_healthy
+      camellia-dashboard-redis:
+        condition: service_started
+    ports:
+      - "18081:8080"
+
   camellia-proxy-1:
     image: 48n6e/camellia-redis-proxy:1.4.0-jdk-21-0.0.1
     container_name: camellia-proxy-1
@@ -112,3 +151,6 @@ services:
 networks:
   default:
     name: camellia-redis-lab-net
+
+volumes:
+  camellia-dashboard-mysql-data:

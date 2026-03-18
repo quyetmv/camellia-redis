@@ -26,6 +26,7 @@ Camellia Proxy #1      Camellia Proxy #2
         +--> tenant B (password=tenantBpwd) -> Redis Pool B
 
 Control Plane API (:18080) cập nhật route config + audit
+Camellia Dashboard/Admin API (:18081) + MySQL/Redis metadata
 Prometheus (:9090) scrape /prometheus từ proxy
 Grafana (:3000, admin/admin)
 ```
@@ -35,19 +36,25 @@ Grafana (:3000, admin/admin)
 - A. `camellia-proxy-1`, `camellia-proxy-2`: data plane Redis protocol, auth, route theo tenant, metrics.
 - B. `redis-pool-a`, `redis-pool-b`, `redis-pool-c`: backend tiers (`shared-small`, `shared-medium`, `dedicated`).
 - C. `control-plane`: service quản trị tenant CRUD/migrate/tier + audit config change.
-- D. Trong MVP lab này, dynamic config store dùng file `proxy/camellia-redis-proxy.properties` do control-plane quản lý; phù hợp mục tiêu validate kiến trúc và config-driven behavior.
+- D. Có thêm `camellia-dashboard` đúng vai trò Admin API/config center (backed by MySQL + Redis metadata) để test API quản trị tập trung.
+- D*. Data plane hiện tại vẫn route theo `multi_tenants_v1` trong `proxy/camellia-redis-proxy.properties` để giữ flow tenant-password đơn giản cho PoC.
 - E. `prometheus`, `grafana`: connections, QPS, p95/p99, error, backend health, tenant-level command metrics.
 
 ## 3) Chạy lab
 
 ```bash
-cd /mnt/c/Users/quyetmv/workspace-pc/learning/labs/camellia-redis-lab
+cd /mnt/c/Users/quyetmv/workspace-pc/learning/labs/camellia-redis
 docker compose up -d --build
 ```
 
 Kiểm tra nhanh:
 ```bash
 ./scripts/quick-check.sh
+```
+
+Bootstrap sẵn route config trên Camellia Dashboard (bid/bgroup 1,2):
+```bash
+bash ./scripts/dashboard-bootstrap.sh
 ```
 
 ## 4) Test PoC
@@ -74,6 +81,7 @@ Reset tenant A về pool A:
   - `http://127.0.0.1:16379/prometheus` (proxy-1)
   - `http://127.0.0.1:16380/prometheus` (proxy-2)
 - Control plane: `http://127.0.0.1:18080`
+- Camellia Dashboard/Admin API: `http://127.0.0.1:18081`
 - Prometheus: `http://127.0.0.1:9090`
 - Grafana: `http://127.0.0.1:3000` (admin/admin)
 
@@ -114,7 +122,32 @@ Audit log:
 curl -s 'http://127.0.0.1:18080/audit?limit=50' | jq
 ```
 
-## 7) Metrics tối thiểu cho PoC
+## 7) Camellia Dashboard/Admin API mẫu
+
+Health check:
+```bash
+curl -s http://127.0.0.1:18081/health/check | jq
+```
+
+Lấy route table theo bid/bgroup:
+```bash
+curl -s 'http://127.0.0.1:18081/camellia/api/resourceTable?bid=1&bgroup=default' | jq
+```
+
+Tạo table + ref thủ công (nếu không dùng script bootstrap):
+```bash
+curl -s -X POST http://127.0.0.1:18081/camellia/admin/createResourceTable \
+  --data-urlencode 'detail=redis://@redis-pool-a:6379' \
+  --data-urlencode 'info=manual-pool-a' | jq
+
+curl -s -X POST http://127.0.0.1:18081/camellia/admin/createOrUpdateTableRef \
+  --data-urlencode 'bid=1' \
+  --data-urlencode 'bgroup=default' \
+  --data-urlencode 'tid=<tid_from_previous_call>' \
+  --data-urlencode 'info=tenant_a route' | jq
+```
+
+## 8) Metrics tối thiểu cho PoC
 
 Các metric trọng tâm có sẵn từ Camellia:
 - `redis_proxy_connect_count` (connections)
@@ -124,10 +157,11 @@ Các metric trọng tâm có sẵn từ Camellia:
 - `redis_proxy_redis_connect_stats` (backend health)
 - `redis_proxy_detail` (tenant-level command count)
 
-## 8) Lưu ý
+## 9) Lưu ý
 
 - Password tenant trong lab phải theo pattern `[A-Za-z0-9_]+` để match parser `multi_tenants_v1`.
 - Lab này ưu tiên chứng minh `route abstraction`, `backend mobility`, `config-driven behavior`.
+- Camellia Dashboard module trong lab này là Admin/API layer; Camellia OSS không kèm sẵn UI web hoàn chỉnh cho thao tác quản trị.
 - Muốn dọn toàn bộ:
 ```bash
 docker compose down -v
