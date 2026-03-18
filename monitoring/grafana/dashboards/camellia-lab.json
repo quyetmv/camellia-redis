@@ -1,0 +1,72 @@
+{
+  "id": null,
+  "uid": "camellia-lab",
+  "title": "Camellia Redis Lab",
+  "tags": ["camellia", "redis", "tenant"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Connections",
+      "id": 1,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "sum(redis_proxy_connect_count)", "refId": "A"}
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+    },
+    {
+      "type": "timeseries",
+      "title": "Tenant RPS",
+      "id": 2,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "sum(rate(redis_proxy_bid_bgroup[1m])) by (bid,bgroup)", "legendFormat": "{{bid}}|{{bgroup}}", "refId": "A"}
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+    },
+    {
+      "type": "timeseries",
+      "title": "P95 Latency (ms)",
+      "id": 3,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "max(redis_proxy_spend_stats{quantile=\"0.95\"}) by (command)", "legendFormat": "{{command}}", "refId": "A"}
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+    },
+    {
+      "type": "timeseries",
+      "title": "P99 Latency (ms)",
+      "id": 4,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "max(redis_proxy_spend_stats{quantile=\"0.99\"}) by (command)", "legendFormat": "{{command}}", "refId": "A"}
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+    },
+    {
+      "type": "timeseries",
+      "title": "Proxy Errors",
+      "id": 5,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "sum(rate(redis_proxy_fail[1m])) by (reason)", "legendFormat": "{{reason}}", "refId": "A"}
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+    },
+    {
+      "type": "timeseries",
+      "title": "Backend Connection Health",
+      "id": 6,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "sum(redis_proxy_redis_connect_stats) by (redis_addr)", "legendFormat": "{{redis_addr}}", "refId": "A"}
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+    }
+  ]
+}

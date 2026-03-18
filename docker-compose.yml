@@ -1,0 +1,114 @@
+services:
+  redis-pool-a:
+    image: redis:7.2-alpine
+    container_name: camellia-redis-pool-a
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "63791:6379"
+
+  redis-pool-b:
+    image: redis:7.2-alpine
+    container_name: camellia-redis-pool-b
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "63792:6379"
+
+  redis-pool-c:
+    image: redis:7.2-alpine
+    container_name: camellia-redis-pool-c
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "63793:6379"
+
+  camellia-proxy-1:
+    image: 48n6e/camellia-redis-proxy:1.4.0-jdk-21-0.0.1
+    container_name: camellia-proxy-1
+    restart: unless-stopped
+    depends_on:
+      - redis-pool-a
+      - redis-pool-b
+      - redis-pool-c
+    volumes:
+      - ./proxy/camellia-redis-proxy.properties:/opt/camellia-redis-proxy/BOOT-INF/classes/camellia-redis-proxy.properties:ro
+    ports:
+      - "16379:16379"
+
+  camellia-proxy-2:
+    image: 48n6e/camellia-redis-proxy:1.4.0-jdk-21-0.0.1
+    container_name: camellia-proxy-2
+    restart: unless-stopped
+    depends_on:
+      - redis-pool-a
+      - redis-pool-b
+      - redis-pool-c
+    volumes:
+      - ./proxy/camellia-redis-proxy.properties:/opt/camellia-redis-proxy/BOOT-INF/classes/camellia-redis-proxy.properties:ro
+    ports:
+      - "16380:16379"
+
+  camellia-lb:
+    image: haproxy:2.9-alpine
+    container_name: camellia-lb
+    restart: unless-stopped
+    depends_on:
+      - camellia-proxy-1
+      - camellia-proxy-2
+    volumes:
+      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    ports:
+      - "6379:6379"
+
+  control-plane:
+    build:
+      context: ./control-plane
+    container_name: camellia-control-plane
+    restart: unless-stopped
+    depends_on:
+      - camellia-proxy-1
+      - camellia-proxy-2
+    environment:
+      - APP_PORT=8080
+      - PROXY_PROPERTIES_FILE=/config/camellia-redis-proxy.properties
+      - TENANTS_FILE=/data/tenants.json
+      - AUDIT_FILE=/data/audit.log
+    volumes:
+      - ./proxy/camellia-redis-proxy.properties:/config/camellia-redis-proxy.properties
+      - ./control-plane/data:/data
+    ports:
+      - "18080:8080"
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: camellia-prometheus
+    restart: unless-stopped
+    depends_on:
+      - camellia-proxy-1
+      - camellia-proxy-2
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:11.1.4
+    container_name: camellia-grafana
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+
+networks:
+  default:
+    name: camellia-redis-lab-net

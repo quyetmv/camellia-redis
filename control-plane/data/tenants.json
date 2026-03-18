@@ -1,0 +1,16 @@
+{
+  "tenant_a": {
+    "backend": "pool_a",
+    "bgroup": "default",
+    "bid": 1,
+    "password": "tenantApwd",
+    "tier": "shared-small"
+  },
+  "tenant_b": {
+    "backend": "pool_b",
+    "bgroup": "default",
+    "bid": 2,
+    "password": "tenantBpwd",
+    "tier": "shared-medium"
+  }
+}

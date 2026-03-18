@@ -1,0 +1,12 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: camellia_proxy
+    metrics_path: /prometheus
+    static_configs:
+      - targets:
+          - camellia-proxy-1:16379
+          - camellia-proxy-2:16379
+        labels:
+          app: camellia-redis-proxy
