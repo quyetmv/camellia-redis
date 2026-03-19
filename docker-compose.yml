@@ -51,7 +51,8 @@ services:
 
   camellia-dashboard:
     build:
-      context: ./dashboard
+      context: ..
+      dockerfile: camellia-redis/dashboard-app/Dockerfile
     container_name: camellia-dashboard
     restart: unless-stopped
     depends_on:
@@ -99,6 +100,88 @@ services:
       - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
     ports:
       - "6379:6379"
+
+  camellia-proxy-tenant-a-1:
+    image: 48n6e/camellia-redis-proxy:1.4.0-jdk-21-0.0.1
+    container_name: camellia-proxy-tenant-a-1
+    restart: unless-stopped
+    depends_on:
+      - redis-pool-a
+      - redis-pool-b
+      - redis-pool-c
+    volumes:
+      - ./proxy/camellia-redis-proxy.properties:/opt/camellia-redis-proxy/BOOT-INF/classes/camellia-redis-proxy.properties:ro
+
+  camellia-proxy-tenant-a-2:
+    image: 48n6e/camellia-redis-proxy:1.4.0-jdk-21-0.0.1
+    container_name: camellia-proxy-tenant-a-2
+    restart: unless-stopped
+    depends_on:
+      - redis-pool-a
+      - redis-pool-b
+      - redis-pool-c
+    volumes:
+      - ./proxy/camellia-redis-proxy.properties:/opt/camellia-redis-proxy/BOOT-INF/classes/camellia-redis-proxy.properties:ro
+
+  camellia-proxy-tenant-a-3:
+    image: 48n6e/camellia-redis-proxy:1.4.0-jdk-21-0.0.1
+    container_name: camellia-proxy-tenant-a-3
+    restart: unless-stopped
+    depends_on:
+      - redis-pool-a
+      - redis-pool-b
+      - redis-pool-c
+    volumes:
+      - ./proxy/camellia-redis-proxy.properties:/opt/camellia-redis-proxy/BOOT-INF/classes/camellia-redis-proxy.properties:ro
+
+  camellia-proxy-tenant-a-4:
+    image: 48n6e/camellia-redis-proxy:1.4.0-jdk-21-0.0.1
+    container_name: camellia-proxy-tenant-a-4
+    restart: unless-stopped
+    depends_on:
+      - redis-pool-a
+      - redis-pool-b
+      - redis-pool-c
+    volumes:
+      - ./proxy/camellia-redis-proxy.properties:/opt/camellia-redis-proxy/BOOT-INF/classes/camellia-redis-proxy.properties:ro
+
+  camellia-proxy-tenant-a-5:
+    image: 48n6e/camellia-redis-proxy:1.4.0-jdk-21-0.0.1
+    container_name: camellia-proxy-tenant-a-5
+    restart: unless-stopped
+    depends_on:
+      - redis-pool-a
+      - redis-pool-b
+      - redis-pool-c
+    volumes:
+      - ./proxy/camellia-redis-proxy.properties:/opt/camellia-redis-proxy/BOOT-INF/classes/camellia-redis-proxy.properties:ro
+
+  camellia-proxy-tenant-a-6:
+    image: 48n6e/camellia-redis-proxy:1.4.0-jdk-21-0.0.1
+    container_name: camellia-proxy-tenant-a-6
+    restart: unless-stopped
+    depends_on:
+      - redis-pool-a
+      - redis-pool-b
+      - redis-pool-c
+    volumes:
+      - ./proxy/camellia-redis-proxy.properties:/opt/camellia-redis-proxy/BOOT-INF/classes/camellia-redis-proxy.properties:ro
+
+  camellia-lb-tenant-a:
+    image: haproxy:2.9-alpine
+    container_name: camellia-lb-tenant-a
+    restart: unless-stopped
+    depends_on:
+      - camellia-proxy-tenant-a-1
+      - camellia-proxy-tenant-a-2
+      - camellia-proxy-tenant-a-3
+      - camellia-proxy-tenant-a-4
+      - camellia-proxy-tenant-a-5
+      - camellia-proxy-tenant-a-6
+    volumes:
+      - ./haproxy/haproxy-tenant-a.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    ports:
+      - "6381:6379"
 
   control-plane:
     build:

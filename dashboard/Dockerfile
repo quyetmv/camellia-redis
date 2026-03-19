@@ -11,4 +11,4 @@ WORKDIR /app
 COPY --from=build /app/target/camellia-dashboard-lab-0.1.0.jar /app/app.jar
 
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+ENTRYPOINT ["java", "--add-opens=java.base/java.lang=ALL-UNNAMED", "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED", "-jar", "/app/app.jar"]

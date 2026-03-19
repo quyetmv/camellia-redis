@@ -17,20 +17,14 @@ spring:
       schema-locations: classpath:schema.sql
       encoding: UTF-8
 
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info
+camellia-redis:
+  type: LOCAL
+  local:
+    type: SIMPLE
+    resource: redis://@camellia-dashboard-redis:6379
 
 camellia-dashboard:
   local-cache-expire-seconds: 5
   stats-expire-seconds: 180
   stats-key-expire-hours: 6
   dao-cache-expire-seconds: 86400
-
-camellia-redis:
-  type: LOCAL
-  local:
-    type: SIMPLE
-    resource: redis://@camellia-dashboard-redis:6379

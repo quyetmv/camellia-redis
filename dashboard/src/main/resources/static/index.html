@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Camellia Dashboard Lab</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 900px; margin: 32px auto; padding: 0 16px; line-height: 1.5; }
+    h1 { margin-bottom: 8px; }
+    code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; }
+    .box { border: 1px solid #ddd; border-radius: 8px; padding: 14px 16px; margin: 12px 0; }
+    ul { margin: 8px 0 0 20px; }
+  </style>
+</head>
+<body>
+<h1>Camellia Dashboard Lab</h1>
+<p>Service is running. This module exposes admin/config APIs (no built-in full web admin UI).</p>
+
+<div class="box">
+  <strong>Health</strong>
+  <ul>
+    <li><a href="/health/check"><code>/health/check</code></a></li>
+    <li><a href="/health/status"><code>/health/status</code></a></li>
+  </ul>
+</div>
+
+<div class="box">
+  <strong>Main APIs</strong>
+  <ul>
+    <li><code>GET /camellia/api/resourceTable?bid=1&bgroup=default</code></li>
+    <li><code>POST /camellia/admin/createResourceTable</code></li>
+    <li><code>POST /camellia/admin/createOrUpdateTableRef</code></li>
+  </ul>
+</div>
+
+<div class="box">
+  <strong>Quick bootstrap</strong>
+  <ul>
+    <li>Run in project root: <code>bash ./scripts/dashboard-bootstrap.sh</code></li>
+  </ul>
+</div>
+</body>
+</html>
