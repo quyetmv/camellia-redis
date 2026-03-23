@@ -9,6 +9,12 @@ Layout da duoc quy hoach lai de de doc hon:
 - Route config dung `local + resource-table.json`
 - Monitoring expose qua console HTTP `/prometheus`
 
+Topology mac dinh khuyen nghi:
+
+- `Deployment + NodePort Service`
+- scale ngang nhieu pod Camellia proxy de service phan phoi connection vao cac pod
+- phu hop hon `StatefulSet` cho lab nay vi proxy dang stateless theo `ConfigMap`
+
 Luu y quan trong:
 
 - Bo manifest nay dang theo mo hinh `sharding local transpond`, khong phai mo hinh `multi_tenants_v1` trong lab Docker Compose.
@@ -79,8 +85,8 @@ kustomize build ./deployment
 
 Ban chi nen chon 1 trong 2 cach chay proxy:
 
-1. `StatefulSet`: de test don gian, 1 pod proxy
-2. `Deployment`: de test scale-out, 3 pod proxy
+1. `Deployment`: topology mac dinh, de scale-out va can bang tai
+2. `StatefulSet`: topology tuy chon, chi dung khi ban can test semantic cua StatefulSet
 
 ## 2. Topology
 
@@ -90,26 +96,21 @@ Ban chi nen chon 1 trong 2 cach chay proxy:
                           | redis-cli / service  |
                           +----------+-----------+
                                      |
-                    +----------------+----------------+
-                    |                                 |
-                    v                                 v
-          +----------------------+          +----------------------+
-          |  svc-db-camellia     |          | svc-db-camellia-    |
-          |  NodePort 30380      |          | deploy              |
-          |  console 30379       |          | NodePort 30480      |
-          +----------+-----------+          | console 30479       |
-                     |                      +----------+-----------+
-                     |                                 |
-                     v                                 v
-          +----------------------+          +----------------------+
-          | StatefulSet proxy    |          | Deployment proxy     |
-          | sts-db-camellia      |          | deploy-db-camellia   |
-          | replicas = 1         |          | replicas = 3         |
-          | port 6380            |          | port 6380            |
-          | console 16379        |          | console 16379        |
-          +----------+-----------+          +----------+-----------+
-                     |                                 |
-                     +---------------+-----------------+
+                                     v
+                    +----------------------------------+
+                    | svc-db-camellia-deploy          |
+                    | NodePort 30480                  |
+                    | console 30479                   |
+                    +----------------+-----------------+
+                                     |
+                                     v
+                    +----------------------------------+
+                    | Deployment proxy                 |
+                    | deploy-db-camellia              |
+                    | replicas = 3                    |
+                    | pod labels:                     |
+                    |   app=camellia-proxy-deploy     |
+                    +----------------+-----------------+
                                      |
                                      v
                     +--------------------------------------+
@@ -137,6 +138,21 @@ Ban chi nen chon 1 trong 2 cach chay proxy:
 
 Metrics endpoint:
   http://<proxy-host>:16379/prometheus
+```
+
+Topology tuy chon `StatefulSet`:
+
+```text
+client
+  |
+  v
+svc-db-camellia (NodePort 30380)
+  |
+  v
+sts-db-camellia
+  |
+  v
+same ConfigMap + same Redis backends
 ```
 
 Trong `resource-table.json`, proxy dang dung sharding voi `bucketSize=3`:
@@ -200,43 +216,15 @@ kubectl rollout status deployment/redis-pool-b -n testing
 kubectl rollout status deployment/redis-pool-c -n testing
 ```
 
-## 5. Chay proxy bang StatefulSet
+## 5. Chay proxy bang Deployment
 
-Day la cach chay don gian nhat de test.
+Day la topology mac dinh nen dung cho lab nay.
 
-Apply:
+Ly do:
 
-```bash
-kubectl apply -n testing -k ./statefulset
-```
-
-Kiem tra:
-
-```bash
-kubectl get sts,pods,svc -n testing | grep camellia
-kubectl rollout status statefulset/sts-db-camellia -n testing
-```
-
-Logs:
-
-```bash
-kubectl logs -n testing sts/sts-db-camellia
-```
-
-NodePort cua `StatefulSet` service:
-
-- Redis proxy: `30380`
-- Console/metrics: `30379`
-
-Neu can port-forward thay vi dung NodePort:
-
-```bash
-kubectl port-forward -n testing svc/svc-db-camellia 6380:6380 16379:16379
-```
-
-## 6. Chay proxy bang Deployment
-
-Dung khi can scale-out nhieu proxy replica.
+- Camellia proxy trong lab dang stateless theo `ConfigMap`
+- can scale ngang nhieu pod de `Service` phan phoi connection
+- khong can stable identity cua `StatefulSet`
 
 Apply:
 
@@ -266,6 +254,40 @@ Port-forward:
 
 ```bash
 kubectl port-forward -n testing svc/svc-db-camellia-deploy 6380:6380 16379:16379
+```
+
+## 6. Chay proxy bang StatefulSet
+
+Day la topology tuy chon. Chi dung khi ban muon test behavior cua `StatefulSet`.
+
+Apply:
+
+```bash
+kubectl apply -n testing -k ./statefulset
+```
+
+Kiem tra:
+
+```bash
+kubectl get sts,pods,svc -n testing | grep camellia
+kubectl rollout status statefulset/sts-db-camellia -n testing
+```
+
+Logs:
+
+```bash
+kubectl logs -n testing sts/sts-db-camellia
+```
+
+NodePort cua `StatefulSet` service:
+
+- Redis proxy: `30380`
+- Console/metrics: `30379`
+
+Neu can port-forward thay vi dung NodePort:
+
+```bash
+kubectl port-forward -n testing svc/svc-db-camellia 6380:6380 16379:16379
 ```
 
 ## 7. Test nhanh
@@ -313,41 +335,47 @@ kubectl exec -n testing deploy/redis-pool-c -- redis-cli GET demo:key
 
 ## 9. Thu tu deploy khuyen nghi
 
-Cho `StatefulSet`:
-
-```bash
-kubectl apply -n testing -k ./statefulset
-```
-
 Cho `Deployment`:
 
 ```bash
 kubectl apply -n testing -k ./deployment
 ```
 
-Khong nen apply ca `StatefulSet` va `Deployment` cung luc tru khi ban co chu dich test ca hai topology.
-
-## 10. Update config
-
-Khi sua file trong `base/`, apply lai overlay ban dang dung:
+Cho `StatefulSet`:
 
 ```bash
 kubectl apply -n testing -k ./statefulset
 ```
 
-Sau do restart proxy de nap config moi:
+Khuyen nghi:
 
-`StatefulSet`:
+- mac dinh dung `Deployment`
+- khong nen apply ca `StatefulSet` va `Deployment` cung luc tru khi ban co chu dich test ca hai topology
+
+## 10. Update config
+
+Khi sua file trong `base/`, apply lai overlay ban dang dung.
+
+Neu ban dang chay topology mac dinh:
 
 ```bash
-kubectl rollout restart statefulset/sts-db-camellia -n testing
+kubectl apply -n testing -k ./deployment
 ```
+
+Sau do restart proxy de nap config moi:
 
 `Deployment`:
 
 ```bash
 kubectl apply -n testing -k ./deployment
 kubectl rollout restart deployment/deploy-db-camellia -n testing
+```
+
+`StatefulSet`:
+
+```bash
+kubectl apply -n testing -k ./statefulset
+kubectl rollout restart statefulset/sts-db-camellia -n testing
 ```
 
 ## 11. Monitoring
@@ -366,7 +394,44 @@ Annotation trong Service da dat:
 
 Neu cluster co Prometheus operator hoac service discovery rieng, ban co the doi sang `ServiceMonitor` sau.
 
-## 12. Troubleshooting
+## 12. Traffic distribution
+
+Ca hai service proxy deu set:
+
+- `sessionAffinity: None`
+
+Nghia la Kubernetes Service khong sticky client theo `ClientIP`.
+
+Tuy nhien can hieu dung co che chia tai:
+
+- `kube-proxy` can bang tai o muc TCP connection, khong can bang theo tung lenh Redis nhu `GET` hay `SET`
+- mot Redis connection da vao pod nao thi se giu pod do trong suot vong doi connection
+- neu ung dung mo it connection va giu lau, traffic co the lech giua cac pod
+- neu ung dung mo nhieu connection song song, phan phoi se deu hon
+
+Kiem tra service dang nhin thay bao nhieu pod:
+
+```bash
+kubectl get endpoints -n testing svc-db-camellia
+kubectl get endpoints -n testing svc-db-camellia-deploy
+```
+
+Neu `StatefulSet` scale len 2 pod:
+
+```bash
+kubectl scale statefulset sts-db-camellia -n testing --replicas=2
+kubectl get pods -n testing -l app=camellia-proxy-sts
+kubectl get endpoints -n testing svc-db-camellia
+```
+
+De traffic deu hon trong thuc te:
+
+- tang so connection tu client hoac connection pool
+- tang so worker/client song song
+- tranh chi dung 1 connection Redis lau song
+- neu can control L4 tot hon, dung them HAProxy/Envoy/LoadBalancer phia truoc Service
+
+## 13. Troubleshooting
 
 Proxy khong len:
 
@@ -403,7 +468,7 @@ curl -s http://<node-ip>:30379/prometheus | head
 curl -s http://<node-ip>:30479/prometheus | head
 ```
 
-## 13. Cleanup
+## 14. Cleanup
 
 Xoa topology `StatefulSet`:
 

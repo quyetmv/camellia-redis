@@ -8,6 +8,7 @@ metadata:
     prometheus.io/path: "/prometheus"
 spec:
   type: NodePort
+  sessionAffinity: None
   ports:
     - name: redis
       protocol: TCP
