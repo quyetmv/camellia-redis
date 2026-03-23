@@ -3,7 +3,7 @@ set -euo pipefail
 
 REDIS_HOST="${REDIS_HOST:-127.0.0.1}"
 REDIS_PORT="${REDIS_PORT:-6379}"
-TENANT_A_PASS="${TENANT_A_PASS:-tenantApwd}"
+TENANT_A_PASS="${TENANT_A_PASS:-}"
 
 REQUESTS="${REQUESTS:-100000}"
 CLIENTS="${CLIENTS:-50}"
@@ -49,7 +49,6 @@ run_one() {
     redis-benchmark
     -h "$REDIS_HOST"
     -p "$REDIS_PORT"
-    -a "$TENANT_A_PASS"
     -n "$test_requests"
     -c "$CLIENTS"
     -P "$PIPELINE"
@@ -58,6 +57,10 @@ run_one() {
     -t "$test_name"
   )
 
+  if [[ -n "$TENANT_A_PASS" ]]; then
+    cmd+=(-a "$TENANT_A_PASS")
+  fi
+
   if [[ "$CSV" == "1" ]]; then
     cmd+=(--csv)
   fi
@@ -65,7 +68,12 @@ run_one() {
   "${cmd[@]}" >>"$OUT_FILE" 2>&1
 }
 
-echo "[INFO] host=$REDIS_HOST port=$REDIS_PORT tenant=tenant_a requests=$REQUESTS clients=$CLIENTS pipeline=$PIPELINE" | tee "$OUT_FILE"
+AUTH_MODE="disabled"
+if [[ -n "$TENANT_A_PASS" ]]; then
+  AUTH_MODE="enabled"
+fi
+
+echo "[INFO] host=$REDIS_HOST port=$REDIS_PORT tenant=tenant_a auth=$AUTH_MODE requests=$REQUESTS clients=$CLIENTS pipeline=$PIPELINE" | tee "$OUT_FILE"
 echo "[INFO] ratio=set:${SET_PERCENT}% get:${GET_PERCENT}% -> set_requests=$SET_REQUESTS get_requests=$GET_REQUESTS" | tee -a "$OUT_FILE"
 
 run_one set "$SET_REQUESTS"

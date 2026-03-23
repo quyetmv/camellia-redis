@@ -3,12 +3,13 @@ kind: ConfigMap
 metadata:
   name: cm-db-camellia
 data:
+
   logback.xml: |
     <?xml version="1.0" encoding="UTF-8"?>
     <configuration scan="true" scanPeriod="60 seconds" debug="false">
       <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-          <pattern>%d %-5p %t %X %c{1}:%L - %m%n</pattern>
+          <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level %thread %X %logger{36}:%L - %msg%n</pattern>
         </encoder>
       </appender>
 
@@ -16,60 +17,118 @@ data:
         <appender-ref ref="STDOUT" />
       </logger>
 
+      <!-- enable debug khi cần -->
+      <!-- <logger name="com.netease.nim.camellia.redis.proxy" level="DEBUG"/> -->
+
       <root level="INFO">
         <appender-ref ref="STDOUT" />
       </root>
     </configuration>
 
+
   application.yml: |
     server:
       port: 6380
+
     spring:
       application:
         name: camellia-redis-proxy-server
+
     camellia-redis-proxy:
+
       console-port: 16379
-      monitor-enable: true
-      monitor-interval-seconds: 60
+
+      # ======================
+      # NETTY THREAD (4 vCPU)
+      # ======================
+      netty:
+        boss-thread: 1
+        worker-thread: 8   # ~2x CPU → optimal
+
+      # ======================
+      # MONITOR
+      # ======================
+      monitor-enable: false
+      monitor-interval-seconds: 10
+
       plugins:
         - monitorPlugin
-        - bigKeyPlugin
-        - hotKeyPlugin
+        # - bigKeyPlugin
+        # - hotKeyPlugin
+        # - hotKeyCachePlugin
+
+      # ======================
+      # GLOBAL CONFIG
+      # ======================
       config:
         "check.redis.resource.valid.not.active.threshold.sceonds": 300
+        "redis.fail.fast.enable": true
+        "redis.fail.fast.threshold": 5
+
+      # ======================
+      # TRANSpond (ROUTING)
+      # ======================
       transpond:
         type: local
+
         local:
           type: complex
           json-file: resource-table.json
+
         redis-conf:
+
+          # ======================
+          # SHARDING
+          # ======================
           sharding-func: com.netease.nim.camellia.core.client.env.CRC16HashTagShardingFunc
-          preheat: false
+
+          # ======================
+          # CONNECTION POOL
+          # ======================
+          min-idle: 100
+          max-idle: 400
+          max-total: 400
+          max-wait-millis: 3000
+
+          # ======================
+          # TIMEOUT
+          # ======================
+          timeout-millis: 2000
+          connect-timeout-millis: 1000
+
+          # ======================
+          # CONNECTION LIFECYCLE
+          # ======================
+          preheat: true
           close-idle-connection: true
-          check-idle-connection-threshold-seconds: 600
-          close-idle-connection-delay-seconds: 60
+          check-idle-connection-threshold-seconds: 300
+          close-idle-connection-delay-seconds: 30
+
 
   resource-table.json: |
     {
       "type": "sharding",
       "operation": {
+        "bucketSize": 12,
         "operationMap": {
-          "0": {
-            "read": "redis://@redis-pool-a:6379",
-            "type": "rw_separate",
-            "write": "redis://@redis-pool-a:6379"
-          },
-          "1": {
-            "read": "redis://@redis-pool-b:6379",
-            "type": "rw_separate",
-            "write": "redis://@redis-pool-b:6379"
-          },
-          "2": {
-            "read": "redis://@redis-pool-c:6379",
-            "type": "rw_separate",
-            "write": "redis://@redis-pool-c:6379"
-          }
-        },
-        "bucketSize": 3
+
+          "0": { "read": "redis://@redis-pool-a:6379", "type": "rw_separate", "write": "redis://@redis-pool-a:6379" },
+          "1": { "read": "redis://@redis-pool-b:6379", "type": "rw_separate", "write": "redis://@redis-pool-b:6379" },
+          "2": { "read": "redis://@redis-pool-c:6379", "type": "rw_separate", "write": "redis://@redis-pool-c:6379" },
+
+          "3": { "read": "redis://@redis-pool-a:6379", "type": "rw_separate", "write": "redis://@redis-pool-a:6379" },
+          "4": { "read": "redis://@redis-pool-b:6379", "type": "rw_separate", "write": "redis://@redis-pool-b:6379" },
+          "5": { "read": "redis://@redis-pool-c:6379", "type": "rw_separate", "write": "redis://@redis-pool-c:6379" },
+
+          "6": { "read": "redis://@redis-pool-a:6379", "type": "rw_separate", "write": "redis://@redis-pool-a:6379" },
+          "7": { "read": "redis://@redis-pool-b:6379", "type": "rw_separate", "write": "redis://@redis-pool-b:6379" },
+          "8": { "read": "redis://@redis-pool-c:6379", "type": "rw_separate", "write": "redis://@redis-pool-c:6379" },
+
+          "9": { "read": "redis://@redis-pool-a:6379", "type": "rw_separate", "write": "redis://@redis-pool-a:6379" },
+          "10": { "read": "redis://@redis-pool-b:6379", "type": "rw_separate", "write": "redis://@redis-pool-b:6379" },
+          "11": { "read": "redis://@redis-pool-c:6379", "type": "rw_separate", "write": "redis://@redis-pool-c:6379" }
+
+        }
       }
     }
+

@@ -30,9 +30,15 @@ k8s/
 │   ├── camellia-proxy-configmap.yaml
 │   ├── redis-backends.yaml
 │   └── kustomization.yaml
+├── monitoring/
+│   ├── camellia-proxy-servicemonitor.yaml
+│   └── kustomization.yaml
 ├── statefulset/
 │   ├── camellia-proxy-statefulset.yaml
 │   ├── camellia-proxy-service.yaml
+│   └── kustomization.yaml
+├── benchmark/
+│   ├── redis-benchmark-client-deployment.yaml
 │   └── kustomization.yaml
 └── deployment/
     ├── camellia-proxy-deployment.yaml
@@ -43,44 +49,54 @@ k8s/
 Y nghia:
 
 - `base/`: tai nguyen dung chung, gom ConfigMap va 3 Redis backend
+- `monitoring/`: `ServiceMonitor` de Prometheus Operator scrape metrics tu Camellia proxy
 - `statefulset/`: topology proxy 1 replica
+- `benchmark/`: benchmark client pod de chay `redis-benchmark` trong cluster
 - `deployment/`: topology proxy scale-out nhieu replica
 
 Ten file moi duoc doi theo vai tro de nhin vao la biet dung de lam gi.
 
 ## 1.1 Kustomization
 
-Moi thu muc `base/`, `statefulset/`, `deployment/` deu co file `kustomization.yaml`.
+Moi thu muc `base/`, `monitoring/`, `statefulset/`, `deployment/`, `benchmark/` deu co file `kustomization.yaml`.
 
 Vai tro:
 
 - `base/kustomization.yaml`: gom `camellia-proxy-configmap.yaml` va `redis-backends.yaml`
+- `monitoring/kustomization.yaml`: gom `camellia-proxy-servicemonitor.yaml`
 - `statefulset/kustomization.yaml`: include `../base` + proxy `StatefulSet` + service cua `StatefulSet`
 - `deployment/kustomization.yaml`: include `../base` + proxy `Deployment` + service cua `Deployment`
+- `benchmark/kustomization.yaml`: tao 1 pod client de chay `redis-benchmark`
 
 Lenh chay chinh:
 
 ```bash
 cd /mnt/c/Users/quyetmv/workspace-pc/learning/labs/camellia-redis/k8s
 kubectl apply -n testing -k ./base
+kubectl apply -n testing -k ./monitoring
 kubectl apply -n testing -k ./statefulset
 kubectl apply -n testing -k ./deployment
+kubectl apply -n testing -k ./benchmark
 ```
 
 Neu chi muon xem YAML sau khi render boi Kustomize:
 
 ```bash
 kubectl kustomize ./base
+kubectl kustomize ./monitoring
 kubectl kustomize ./statefulset
 kubectl kustomize ./deployment
+kubectl kustomize ./benchmark
 ```
 
 Neu may da cai binary `kustomize` rieng:
 
 ```bash
 kustomize build ./base
+kustomize build ./monitoring
 kustomize build ./statefulset
 kustomize build ./deployment
+kustomize build ./benchmark
 ```
 
 Ban chi nen chon 1 trong 2 cach chay proxy:
@@ -139,6 +155,8 @@ Ban chi nen chon 1 trong 2 cach chay proxy:
 Metrics endpoint:
   http://<proxy-host>:16379/prometheus
 ```
+
+Neu cluster dung Prometheus Operator hoac `kube-prometheus-stack`, co the them `ServiceMonitor` de scrape metrics qua service port `console`.
 
 Topology tuy chon `StatefulSet`:
 
@@ -215,6 +233,49 @@ kubectl rollout status deployment/redis-pool-a -n testing
 kubectl rollout status deployment/redis-pool-b -n testing
 kubectl rollout status deployment/redis-pool-c -n testing
 ```
+
+## 4.1 Deploy ServiceMonitor
+
+Phan nay chi can khi cluster da co CRD `ServiceMonitor` va co Prometheus Operator dang watch namespace `testing`.
+
+Kiem tra CRD:
+
+```bash
+kubectl get crd servicemonitors.monitoring.coreos.com
+```
+
+Apply:
+
+```bash
+kubectl apply -n testing -k ./monitoring
+```
+
+Kiem tra:
+
+```bash
+kubectl get servicemonitor -n testing
+kubectl describe servicemonitor camellia-proxy -n testing
+```
+
+ServiceMonitor nay se scrape moi service Camellia proxy co label:
+
+- `monitoring.camellia.io/enabled=true`
+
+Hien tai da gan label nay cho ca:
+
+- `svc-db-camellia-deploy`
+- `svc-db-camellia`
+
+Endpoint scrape:
+
+- port: `console`
+- path: `/prometheus`
+- interval: `15s`
+
+Luu y:
+
+- Neu dung `kube-prometheus-stack`, Prometheus instance cua ban co the chi select `ServiceMonitor` co them label nhu `release: kube-prometheus-stack`.
+- Neu gap truong hop do, patch them label vao file `monitoring/camellia-proxy-servicemonitor.yaml` cho khop selector cua Prometheus trong cluster.
 
 ## 5. Chay proxy bang Deployment
 
@@ -313,7 +374,85 @@ curl -s http://127.0.0.1:16379/prometheus | head -n 30
 
 Neu dung NodePort, thay `127.0.0.1` bang IP cua node.
 
-## 8. Kiem tra route xuong Redis backend
+## 8. Deploy benchmark client
+
+Apply benchmark client:
+
+```bash
+kubectl apply -n testing -k ./benchmark
+```
+
+Kiem tra pod:
+
+```bash
+kubectl get deploy,pods -n testing -l app=redis-benchmark-client
+kubectl rollout status deployment/redis-benchmark-client -n testing
+```
+
+Lay ten pod:
+
+```bash
+BENCH_POD="$(kubectl get pod -n testing -l app=redis-benchmark-client -o jsonpath='{.items[0].metadata.name}')"
+echo "$BENCH_POD"
+```
+
+Xem bien moi truong co san trong benchmark pod:
+
+```bash
+kubectl exec -n testing "$BENCH_POD" -- env | grep REDIS_BENCHMARK
+```
+
+Test ket noi tu trong cluster qua Service DNS:
+
+```bash
+kubectl exec -n testing "$BENCH_POD" -- redis-cli -h svc-db-camellia-deploy -p 6380 PING
+```
+
+Test ket noi qua NodePort noi bo cluster:
+
+```bash
+kubectl exec -n testing "$BENCH_POD" -- sh -c 'redis-cli -h "$REDIS_BENCHMARK_NODEPORT_HOST" -p "$REDIS_BENCHMARK_DEPLOY_NODEPORT_PORT" PING'
+```
+
+Chay benchmark nhanh qua Service DNS:
+
+```bash
+kubectl exec -n testing "$BENCH_POD" -- \
+  redis-benchmark -h svc-db-camellia-deploy -p 6380 -n 100000 -c 100 -P 32 -r 100000 -d 64 -t set,get
+```
+
+Chay benchmark nhanh qua NodePort noi bo cluster:
+
+```bash
+kubectl exec -n testing "$BENCH_POD" -- sh -c 'redis-benchmark -h "$REDIS_BENCHMARK_NODEPORT_HOST" -p "$REDIS_BENCHMARK_DEPLOY_NODEPORT_PORT" -n 100000 -c 100 -P 32 -r "$REDIS_BENCHMARK_KEYSPACE" -d "$REDIS_BENCHMARK_DATA_SIZE" -t set,get'
+```
+
+Warmup truoc roi benchmark chinh qua NodePort:
+
+```bash
+kubectl exec -n testing "$BENCH_POD" -- sh -c 'redis-benchmark -h "$REDIS_BENCHMARK_NODEPORT_HOST" -p "$REDIS_BENCHMARK_DEPLOY_NODEPORT_PORT" -n 20000 -c 50 -P 16 -r "$REDIS_BENCHMARK_KEYSPACE" -d "$REDIS_BENCHMARK_DATA_SIZE" -t set,get'
+
+kubectl exec -n testing "$BENCH_POD" -- sh -c 'redis-benchmark -h "$REDIS_BENCHMARK_NODEPORT_HOST" -p "$REDIS_BENCHMARK_DEPLOY_NODEPORT_PORT" -n 300000 -c 100 -P 32 -r "$REDIS_BENCHMARK_KEYSPACE" -d "$REDIS_BENCHMARK_DATA_SIZE" -t set,get'
+```
+
+Neu can benchmark qua `StatefulSet` service thi thay host:
+
+```bash
+svc-db-camellia
+```
+
+Neu can benchmark qua NodePort cua `StatefulSet` thi dung:
+
+```bash
+kubectl exec -n testing "$BENCH_POD" -- sh -c 'redis-benchmark -h "$REDIS_BENCHMARK_NODEPORT_HOST" -p "$REDIS_BENCHMARK_STS_NODEPORT_PORT" -n 100000 -c 100 -P 32 -r "$REDIS_BENCHMARK_KEYSPACE" -d "$REDIS_BENCHMARK_DATA_SIZE" -t set,get'
+```
+
+Luu y:
+
+- Benchmark qua `svc-db-camellia-deploy:6380` la duong di noi bo cluster thong thuong.
+- Benchmark qua `status.hostIP:30480` se di qua duong `NodePort`, phu hop khi ban muon test them lop kube-proxy/NodePort.
+
+## 9. Kiem tra route xuong Redis backend
 
 Vi proxy dang route theo sharding, key khac nhau co the vao backend khac nhau.
 
@@ -333,18 +472,21 @@ kubectl exec -n testing deploy/redis-pool-b -- redis-cli GET demo:key
 kubectl exec -n testing deploy/redis-pool-c -- redis-cli GET demo:key
 ```
 
-## 9. Thu tu deploy khuyen nghi
+## 10. Thu tu deploy khuyen nghi
 
 Cho `Deployment`:
 
 ```bash
 kubectl apply -n testing -k ./deployment
+kubectl apply -n testing -k ./monitoring
+kubectl apply -n testing -k ./benchmark
 ```
 
 Cho `StatefulSet`:
 
 ```bash
 kubectl apply -n testing -k ./statefulset
+kubectl apply -n testing -k ./monitoring
 ```
 
 Khuyen nghi:
@@ -392,7 +534,28 @@ Annotation trong Service da dat:
 - `prometheus.io/port: "16379"`
 - `prometheus.io/path: "/prometheus"`
 
-Neu cluster co Prometheus operator hoac service discovery rieng, ban co the doi sang `ServiceMonitor` sau.
+Ngoai annotation, repo nay da co san `ServiceMonitor` tai `monitoring/camellia-proxy-servicemonitor.yaml`.
+
+Apply:
+
+```bash
+kubectl apply -n testing -k ./monitoring
+```
+
+Kiem tra:
+
+```bash
+kubectl get servicemonitor -n testing
+kubectl describe servicemonitor camellia-proxy -n testing
+```
+
+`ServiceMonitor` se scrape moi service co label:
+
+- `monitoring.camellia.io/enabled=true`
+
+Neu Prometheus Operator trong cluster cua ban chi watch `ServiceMonitor` theo label rieng, can them label bo sung vao file `monitoring/camellia-proxy-servicemonitor.yaml`, vi du:
+
+- `release: kube-prometheus-stack`
 
 ## 12. Traffic distribution
 
@@ -468,6 +631,13 @@ curl -s http://<node-ip>:30379/prometheus | head
 curl -s http://<node-ip>:30479/prometheus | head
 ```
 
+Benchmark client khong len:
+
+```bash
+kubectl describe deployment redis-benchmark-client -n testing
+kubectl logs -n testing deploy/redis-benchmark-client
+```
+
 ## 14. Cleanup
 
 Xoa topology `StatefulSet`:
@@ -480,6 +650,18 @@ Xoa topology `Deployment`:
 
 ```bash
 kubectl delete -n testing -k ./deployment
+```
+
+Xoa benchmark client:
+
+```bash
+kubectl delete -n testing -k ./benchmark
+```
+
+Xoa `ServiceMonitor`:
+
+```bash
+kubectl delete -n testing -k ./monitoring
 ```
 
 Xoa base resources:

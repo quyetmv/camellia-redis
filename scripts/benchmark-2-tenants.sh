@@ -3,8 +3,8 @@ set -euo pipefail
 
 REDIS_HOST="${REDIS_HOST:-127.0.0.1}"
 REDIS_PORT="${REDIS_PORT:-6379}"
-TENANT_A_PASS="${TENANT_A_PASS:-tenantApwd}"
-TENANT_B_PASS="${TENANT_B_PASS:-tenantBpwd}"
+TENANT_A_PASS="${TENANT_A_PASS:-}"
+TENANT_B_PASS="${TENANT_B_PASS:-}"
 
 REQUESTS="${REQUESTS:-100000}"
 CLIENTS="${CLIENTS:-50}"
@@ -55,7 +55,6 @@ run_single() {
     redis-benchmark
     -h "$REDIS_HOST"
     -p "$REDIS_PORT"
-    -a "$pass"
     -n "$requests"
     -c "$CLIENTS"
     -P "$PIPELINE"
@@ -63,6 +62,9 @@ run_single() {
     -r "$KEYSPACE"
     -t "$test_name"
   )
+  if [[ -n "$pass" ]]; then
+    cmd+=(-a "$pass")
+  fi
   if [[ "$CSV" == "1" ]]; then
     cmd+=(--csv)
   fi

@@ -1,0 +1,2 @@
+resources:
+  - redis-benchmark-client-deployment.yaml
