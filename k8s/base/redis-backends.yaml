@@ -1,18 +1,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: redis-pool-a
+  name: redis-pool-1
   labels:
-    app: redis-pool-a
+    app: redis-pool-1
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: redis-pool-a
+      app: redis-pool-1
   template:
     metadata:
       labels:
-        app: redis-pool-a
+        app: redis-pool-1
     spec:
       containers:
         - name: redis
@@ -32,30 +32,30 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: redis-pool-a
+  name: redis-pool-1
 spec:
   ports:
     - name: redis
       port: 6379
       targetPort: 6379
   selector:
-    app: redis-pool-a
+    app: redis-pool-1
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: redis-pool-b
+  name: redis-pool-2
   labels:
-    app: redis-pool-b
+    app: redis-pool-2
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: redis-pool-b
+      app: redis-pool-2
   template:
     metadata:
       labels:
-        app: redis-pool-b
+        app: redis-pool-2
     spec:
       containers:
         - name: redis
@@ -68,30 +68,30 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: redis-pool-b
+  name: redis-pool-2
 spec:
   ports:
     - name: redis
       port: 6379
       targetPort: 6379
   selector:
-    app: redis-pool-b
+    app: redis-pool-2
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: redis-pool-c
+  name: redis-pool-3
   labels:
-    app: redis-pool-c
+    app: redis-pool-3
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: redis-pool-c
+      app: redis-pool-3
   template:
     metadata:
       labels:
-        app: redis-pool-c
+        app: redis-pool-3
     spec:
       containers:
         - name: redis
@@ -104,11 +104,227 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: redis-pool-c
+  name: redis-pool-3
 spec:
   ports:
     - name: redis
       port: 6379
       targetPort: 6379
   selector:
-    app: redis-pool-c
+    app: redis-pool-3
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-pool-4
+  labels:
+    app: redis-pool-4
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-pool-4
+  template:
+    metadata:
+      labels:
+        app: redis-pool-4
+    spec:
+      containers:
+        - name: redis
+          image: redis:7.2-alpine
+          args: ["redis-server", "--appendonly", "yes"]
+          ports:
+            - containerPort: 6379
+              name: redis
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-pool-4
+spec:
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+  selector:
+    app: redis-pool-4
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-pool-5
+  labels:
+    app: redis-pool-5
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-pool-5
+  template:
+    metadata:
+      labels:
+        app: redis-pool-5
+    spec:
+      containers:
+        - name: redis
+          image: redis:7.2-alpine
+          args: ["redis-server", "--appendonly", "yes"]
+          ports:
+            - containerPort: 6379
+              name: redis
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-pool-5
+spec:
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+  selector:
+    app: redis-pool-5
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-pool-6
+  labels:
+    app: redis-pool-6
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-pool-6
+  template:
+    metadata:
+      labels:
+        app: redis-pool-6
+    spec:
+      containers:
+        - name: redis
+          image: redis:7.2-alpine
+          args: ["redis-server", "--appendonly", "yes"]
+          ports:
+            - containerPort: 6379
+              name: redis
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-pool-6
+spec:
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+  selector:
+    app: redis-pool-6
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-pool-7
+  labels:
+    app: redis-pool-7
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-pool-7
+  template:
+    metadata:
+      labels:
+        app: redis-pool-7
+    spec:
+      containers:
+        - name: redis
+          image: redis:7.2-alpine
+          args: ["redis-server", "--appendonly", "yes"]
+          ports:
+            - containerPort: 6379
+              name: redis
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-pool-7
+spec:
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+  selector:
+    app: redis-pool-7
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-pool-8
+  labels:
+    app: redis-pool-8
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-pool-8
+  template:
+    metadata:
+      labels:
+        app: redis-pool-8
+    spec:
+      containers:
+        - name: redis
+          image: redis:7.2-alpine
+          args: ["redis-server", "--appendonly", "yes"]
+          ports:
+            - containerPort: 6379
+              name: redis
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-pool-8
+spec:
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+  selector:
+    app: redis-pool-8
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-pool-9
+  labels:
+    app: redis-pool-9
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-pool-9
+  template:
+    metadata:
+      labels:
+        app: redis-pool-9
+    spec:
+      containers:
+        - name: redis
+          image: redis:7.2-alpine
+          args: ["redis-server", "--appendonly", "yes"]
+          ports:
+            - containerPort: 6379
+              name: redis
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-pool-9
+spec:
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+  selector:
+    app: redis-pool-9

@@ -74,8 +74,8 @@ spec:
               mountPath: /opt/camellia-redis-proxy/BOOT-INF/classes/logback.xml
               subPath: logback.xml
             - name: cm-db-camellia
-              mountPath: /opt/camellia-redis-proxy/BOOT-INF/classes/resource-table.json
-              subPath: resource-table.json
+              mountPath: /opt/camellia-redis-proxy/BOOT-INF/classes/resource-sharding-singlewrite-multiread.json
+              subPath: resource-sharding-singlewrite-multiread.json
       volumes:
         - name: cm-db-camellia
           configMap:

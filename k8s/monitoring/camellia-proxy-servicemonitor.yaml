@@ -12,5 +12,5 @@ spec:
     - port: console
       path: /prometheus
       scheme: http
-      interval: 15s
+      interval: 5s
       scrapeTimeout: 10s

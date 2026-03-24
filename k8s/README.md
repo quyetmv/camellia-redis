@@ -6,7 +6,7 @@ Layout da duoc quy hoach lai de de doc hon:
 
 - Proxy chay tren Kubernetes
 - Redis backend cung chay tren Kubernetes
-- Route config dung `local + resource-table.json`
+- Route config dung `local + resource-sharding-singlewrite-multiread.json`
 - Monitoring expose qua console HTTP `/prometheus`
 
 Topology mac dinh khuyen nghi:
@@ -18,7 +18,7 @@ Topology mac dinh khuyen nghi:
 Luu y quan trong:
 
 - Bo manifest nay dang theo mo hinh `sharding local transpond`, khong phai mo hinh `multi_tenants_v1` trong lab Docker Compose.
-- Nghia la proxy route theo `resource-table.json`, khong route theo password tenant.
+- Nghia la proxy route theo `resource-sharding-singlewrite-multiread.json`, khong route theo password tenant.
 - Neu muon multi-tenant giong Docker lab, can doi lai config proxy sang mode `route.conf.provider=multi_tenants_v1`.
 
 ## 1. Cau truc thu muc
@@ -48,7 +48,7 @@ k8s/
 
 Y nghia:
 
-- `base/`: tai nguyen dung chung, gom ConfigMap va 3 Redis backend
+- `base/`: tai nguyen dung chung, gom ConfigMap va 9 Redis backend
 - `monitoring/`: `ServiceMonitor` de Prometheus Operator scrape metrics tu Camellia proxy
 - `statefulset/`: topology proxy 1 replica
 - `benchmark/`: benchmark client pod de chay `redis-benchmark` trong cluster
@@ -132,7 +132,8 @@ Ban chi nen chon 1 trong 2 cach chay proxy:
                     +--------------------------------------+
                     | ConfigMap cm-db-camellia             |
                     | - application.yml                    |
-                    | - resource-table.json                |
+                    | - resource-sharding-singlewrite-     |
+                    |   multiread.json                     |
                     | - logback.xml                        |
                     +----------------+---------------------+
                                      |
@@ -143,14 +144,14 @@ Ban chi nen chon 1 trong 2 cach chay proxy:
                     | table.json, bucketSize=3            |
                     +----------------+---------------------+
                                      |
-          +--------------------------+--------------------------+
-          |                          |                          |
-          v                          v                          v
- +------------------+      +------------------+      +------------------+
- | redis-pool-a     |      | redis-pool-b     |      | redis-pool-c     |
- | Deployment x1    |      | Deployment x1    |      | Deployment x1    |
- | Service :6379    |      | Service :6379    |      | Service :6379    |
- +------------------+      +------------------+      +------------------+
+                                     v
+      +-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+
+      |           |           |           |           |           |           |           |           |           |
+      v           v           v           v           v           v           v           v           v
+ +----------+ +----------+ +----------+ +----------+ +----------+ +----------+ +----------+ +----------+ +----------+
+ | pool-1   | | pool-2   | | pool-3   | | pool-4   | | pool-5   | | pool-6   | | pool-7   | | pool-8   | | pool-9   |
+ | :6379    | | :6379    | | :6379    | | :6379    | | :6379    | | :6379    | | :6379    | | :6379    | | :6379    |
+ +----------+ +----------+ +----------+ +----------+ +----------+ +----------+ +----------+ +----------+ +----------+
 
 Metrics endpoint:
   http://<proxy-host>:16379/prometheus
@@ -173,11 +174,11 @@ sts-db-camellia
 same ConfigMap + same Redis backends
 ```
 
-Trong `resource-table.json`, proxy dang dung sharding voi `bucketSize=3`:
+Trong `resource-sharding-singlewrite-multiread.json`, proxy dang dung sharding `bucketSize=3` voi `single write / multiple read`:
 
-- bucket `0` -> `redis-pool-a`
-- bucket `1` -> `redis-pool-b`
-- bucket `2` -> `redis-pool-c`
+- bucket `0`: write `redis-pool-1`, read random tu `redis-pool-2`, `redis-pool-3`
+- bucket `1`: write `redis-pool-4`, read random tu `redis-pool-5`, `redis-pool-6`
+- bucket `2`: write `redis-pool-7`, read random tu `redis-pool-8`, `redis-pool-9`
 
 ## 3. Preconditions
 
@@ -206,9 +207,15 @@ kubectl create namespace testing
 `base/` gom:
 
 - `cm-db-camellia`
-- `redis-pool-a`
-- `redis-pool-b`
-- `redis-pool-c`
+- `redis-pool-1`
+- `redis-pool-2`
+- `redis-pool-3`
+- `redis-pool-4`
+- `redis-pool-5`
+- `redis-pool-6`
+- `redis-pool-7`
+- `redis-pool-8`
+- `redis-pool-9`
 
 Apply:
 
@@ -220,18 +227,30 @@ Kiem tra:
 
 ```bash
 kubectl get configmap -n testing cm-db-camellia
-kubectl get pods -n testing -l app=redis-pool-a
-kubectl get pods -n testing -l app=redis-pool-b
-kubectl get pods -n testing -l app=redis-pool-c
+kubectl get pods -n testing -l app=redis-pool-1
+kubectl get pods -n testing -l app=redis-pool-2
+kubectl get pods -n testing -l app=redis-pool-3
+kubectl get pods -n testing -l app=redis-pool-4
+kubectl get pods -n testing -l app=redis-pool-5
+kubectl get pods -n testing -l app=redis-pool-6
+kubectl get pods -n testing -l app=redis-pool-7
+kubectl get pods -n testing -l app=redis-pool-8
+kubectl get pods -n testing -l app=redis-pool-9
 kubectl get svc -n testing | grep redis-pool
 ```
 
 Rollout status:
 
 ```bash
-kubectl rollout status deployment/redis-pool-a -n testing
-kubectl rollout status deployment/redis-pool-b -n testing
-kubectl rollout status deployment/redis-pool-c -n testing
+kubectl rollout status deployment/redis-pool-1 -n testing
+kubectl rollout status deployment/redis-pool-2 -n testing
+kubectl rollout status deployment/redis-pool-3 -n testing
+kubectl rollout status deployment/redis-pool-4 -n testing
+kubectl rollout status deployment/redis-pool-5 -n testing
+kubectl rollout status deployment/redis-pool-6 -n testing
+kubectl rollout status deployment/redis-pool-7 -n testing
+kubectl rollout status deployment/redis-pool-8 -n testing
+kubectl rollout status deployment/redis-pool-9 -n testing
 ```
 
 ## 4.1 Deploy ServiceMonitor
@@ -459,17 +478,29 @@ Vi proxy dang route theo sharding, key khac nhau co the vao backend khac nhau.
 Ban co the kiem tra gia tri truc tiep tung Redis backend:
 
 ```bash
-kubectl exec -n testing deploy/redis-pool-a -- redis-cli KEYS '*'
-kubectl exec -n testing deploy/redis-pool-b -- redis-cli KEYS '*'
-kubectl exec -n testing deploy/redis-pool-c -- redis-cli KEYS '*'
+kubectl exec -n testing deploy/redis-pool-1 -- redis-cli KEYS '*'
+kubectl exec -n testing deploy/redis-pool-2 -- redis-cli KEYS '*'
+kubectl exec -n testing deploy/redis-pool-3 -- redis-cli KEYS '*'
+kubectl exec -n testing deploy/redis-pool-4 -- redis-cli KEYS '*'
+kubectl exec -n testing deploy/redis-pool-5 -- redis-cli KEYS '*'
+kubectl exec -n testing deploy/redis-pool-6 -- redis-cli KEYS '*'
+kubectl exec -n testing deploy/redis-pool-7 -- redis-cli KEYS '*'
+kubectl exec -n testing deploy/redis-pool-8 -- redis-cli KEYS '*'
+kubectl exec -n testing deploy/redis-pool-9 -- redis-cli KEYS '*'
 ```
 
 Hoac exec vao tung Redis roi doc key cu the:
 
 ```bash
-kubectl exec -n testing deploy/redis-pool-a -- redis-cli GET demo:key
-kubectl exec -n testing deploy/redis-pool-b -- redis-cli GET demo:key
-kubectl exec -n testing deploy/redis-pool-c -- redis-cli GET demo:key
+kubectl exec -n testing deploy/redis-pool-1 -- redis-cli GET demo:key
+kubectl exec -n testing deploy/redis-pool-2 -- redis-cli GET demo:key
+kubectl exec -n testing deploy/redis-pool-3 -- redis-cli GET demo:key
+kubectl exec -n testing deploy/redis-pool-4 -- redis-cli GET demo:key
+kubectl exec -n testing deploy/redis-pool-5 -- redis-cli GET demo:key
+kubectl exec -n testing deploy/redis-pool-6 -- redis-cli GET demo:key
+kubectl exec -n testing deploy/redis-pool-7 -- redis-cli GET demo:key
+kubectl exec -n testing deploy/redis-pool-8 -- redis-cli GET demo:key
+kubectl exec -n testing deploy/redis-pool-9 -- redis-cli GET demo:key
 ```
 
 ## 10. Thu tu deploy khuyen nghi
@@ -619,9 +650,15 @@ kubectl exec -it -n testing <proxy-pod> -- sh
 Trong pod proxy:
 
 ```bash
-nc -vz redis-pool-a 6379
-nc -vz redis-pool-b 6379
-nc -vz redis-pool-c 6379
+nc -vz redis-pool-1 6379
+nc -vz redis-pool-2 6379
+nc -vz redis-pool-3 6379
+nc -vz redis-pool-4 6379
+nc -vz redis-pool-5 6379
+nc -vz redis-pool-6 6379
+nc -vz redis-pool-7 6379
+nc -vz redis-pool-8 6379
+nc -vz redis-pool-9 6379
 ```
 
 Khong co metrics:

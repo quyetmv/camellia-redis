@@ -48,7 +48,7 @@ spec:
             - "--add-opens"
             - "java.base/sun.net.util=ALL-UNNAMED"
             - "-Xms128m"
-            - "-Xmx1024m"
+            - "-Xmx8192m"
             - "-server"
             - "org.springframework.boot.loader.JarLauncher"
           resources:
@@ -68,13 +68,13 @@ spec:
           volumeMounts:
             - name: cm-db-camellia
               mountPath: /opt/camellia-redis-proxy/BOOT-INF/classes/application.yml
-              subPath: application.yml
+              subPath: application-sharding-singlewrite-multiread.yml
             - name: cm-db-camellia
               mountPath: /opt/camellia-redis-proxy/BOOT-INF/classes/logback.xml
               subPath: logback.xml
             - name: cm-db-camellia
-              mountPath: /opt/camellia-redis-proxy/BOOT-INF/classes/resource-table.json
-              subPath: resource-table.json
+              mountPath: /opt/camellia-redis-proxy/BOOT-INF/classes/resource-sharding-singlewrite-multiread.json
+              subPath: resource-sharding-singlewrite-multiread.json
       volumes:
         - name: cm-db-camellia
           configMap:
