@@ -37,6 +37,10 @@ k8s/
 │   ├── camellia-proxy-statefulset.yaml
 │   ├── camellia-proxy-service.yaml
 │   └── kustomization.yaml
+├── standalone/
+│   ├── camellia-proxy-standalone-deployment.yaml
+│   ├── camellia-proxy-standalone-service.yaml
+│   └── kustomization.yaml
 ├── benchmark/
 │   ├── redis-benchmark-client-deployment.yaml
 │   └── kustomization.yaml
@@ -51,6 +55,7 @@ Y nghia:
 - `base/`: tai nguyen dung chung, gom ConfigMap va 9 Redis backend
 - `monitoring/`: `ServiceMonitor` de Prometheus Operator scrape metrics tu Camellia proxy
 - `statefulset/`: topology proxy 1 replica
+- `standalone/`: 1 proxy deployment dung config standalone, phu hop de benchmark khong bi `MOVED`
 - `benchmark/`: benchmark client pod de chay `redis-benchmark` trong cluster
 - `deployment/`: topology proxy scale-out nhieu replica
 
@@ -58,13 +63,14 @@ Ten file moi duoc doi theo vai tro de nhin vao la biet dung de lam gi.
 
 ## 1.1 Kustomization
 
-Moi thu muc `base/`, `monitoring/`, `statefulset/`, `deployment/`, `benchmark/` deu co file `kustomization.yaml`.
+Moi thu muc `base/`, `monitoring/`, `statefulset/`, `standalone/`, `deployment/`, `benchmark/` deu co file `kustomization.yaml`.
 
 Vai tro:
 
 - `base/kustomization.yaml`: gom `camellia-proxy-configmap.yaml` va `redis-backends.yaml`
 - `monitoring/kustomization.yaml`: gom `camellia-proxy-servicemonitor.yaml`
 - `statefulset/kustomization.yaml`: include `../base` + proxy `StatefulSet` + service cua `StatefulSet`
+- `standalone/kustomization.yaml`: include `../base` + proxy `Deployment` dung `application-standalone.yml`
 - `deployment/kustomization.yaml`: include `../base` + proxy `Deployment` + service cua `Deployment`
 - `benchmark/kustomization.yaml`: tao 1 pod client de chay `redis-benchmark`
 
@@ -75,6 +81,7 @@ cd /mnt/c/Users/quyetmv/workspace-pc/learning/labs/camellia-redis/k8s
 kubectl apply -n testing -k ./base
 kubectl apply -n testing -k ./monitoring
 kubectl apply -n testing -k ./statefulset
+kubectl apply -n testing -k ./standalone
 kubectl apply -n testing -k ./deployment
 kubectl apply -n testing -k ./benchmark
 ```
@@ -85,6 +92,7 @@ Neu chi muon xem YAML sau khi render boi Kustomize:
 kubectl kustomize ./base
 kubectl kustomize ./monitoring
 kubectl kustomize ./statefulset
+kubectl kustomize ./standalone
 kubectl kustomize ./deployment
 kubectl kustomize ./benchmark
 ```
@@ -95,6 +103,7 @@ Neu may da cai binary `kustomize` rieng:
 kustomize build ./base
 kustomize build ./monitoring
 kustomize build ./statefulset
+kustomize build ./standalone
 kustomize build ./deployment
 kustomize build ./benchmark
 ```
@@ -370,6 +379,41 @@ Neu can port-forward thay vi dung NodePort:
 kubectl port-forward -n testing svc/svc-db-camellia 6380:6380 16379:16379
 ```
 
+## 6.1 Chay proxy bang Standalone Deployment
+
+Overlay nay tao mot proxy rieng de benchmark theo mode standalone, tranh redirect `MOVED`.
+
+Apply:
+
+```bash
+kubectl apply -n testing -k ./standalone
+```
+
+Kiem tra:
+
+```bash
+kubectl get deploy,pods,svc -n testing | grep standalone
+kubectl rollout status deployment/deploy-db-camellia-standalone -n testing
+```
+
+NodePort cua `Standalone` service:
+
+- Redis proxy: `30580`
+- Console/metrics: `30579`
+
+Test nhanh:
+
+```bash
+redis-cli -h <node-ip> -p 30580 -a camellia_admin_pass PING
+```
+
+Benchmark tu benchmark pod:
+
+```bash
+kubectl exec -n testing "$BENCH_POD" -- \
+  redis-benchmark -h svc-db-camellia-standalone -p 6380 -a camellia_admin_pass -t set,get -n 100000 -c 100 -P 32 -r 100000 -d 32
+```
+
 ## 7. Test nhanh
 
 Sau khi port-forward hoac expose NodePort, test Redis protocol qua proxy:
@@ -513,6 +557,14 @@ kubectl apply -n testing -k ./monitoring
 kubectl apply -n testing -k ./benchmark
 ```
 
+Cho `Standalone`:
+
+```bash
+kubectl apply -n testing -k ./standalone
+kubectl apply -n testing -k ./monitoring
+kubectl apply -n testing -k ./benchmark
+```
+
 Cho `StatefulSet`:
 
 ```bash
@@ -523,6 +575,7 @@ kubectl apply -n testing -k ./monitoring
 Khuyen nghi:
 
 - mac dinh dung `Deployment`
+- dung `standalone/` khi muon benchmark mot endpoint non-cluster, khong bi `MOVED`
 - khong nen apply ca `StatefulSet` va `Deployment` cung luc tru khi ban co chu dich test ca hai topology
 
 ## 10. Update config
@@ -549,6 +602,13 @@ kubectl rollout restart deployment/deploy-db-camellia -n testing
 ```bash
 kubectl apply -n testing -k ./statefulset
 kubectl rollout restart statefulset/sts-db-camellia -n testing
+```
+
+`Standalone`:
+
+```bash
+kubectl apply -n testing -k ./standalone
+kubectl rollout restart deployment/deploy-db-camellia-standalone -n testing
 ```
 
 ## 11. Monitoring
@@ -687,6 +747,12 @@ Xoa topology `Deployment`:
 
 ```bash
 kubectl delete -n testing -k ./deployment
+```
+
+Xoa topology `Standalone`:
+
+```bash
+kubectl delete -n testing -k ./standalone
 ```
 
 Xoa benchmark client:

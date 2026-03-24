@@ -157,6 +157,51 @@ data:
           check-idle-connection-threshold-seconds: 300
           close-idle-connection-delay-seconds: 30
 
+  application-standalone.yml: |
+    server:
+      port: 6380
+
+    spring:
+      application:
+        name: camellia-redis-proxy-server
+
+    camellia-redis-proxy:
+      console-port: 16379
+      password: camellia_admin_pass
+
+      netty:
+        boss-thread: 1
+        worker-thread: 8
+
+      monitor-enable: false
+      monitor-interval-seconds: 10
+
+      plugins:
+        - monitorPlugin
+
+      config:
+        "check.redis.resource.valid.not.active.threshold.sceonds": 300
+        "redis.fail.fast.enable": true
+        "redis.fail.fast.threshold": 5
+
+      transpond:
+        type: local
+        local:
+          type: complex
+          json-file: resource-sharding-singlewrite-multiread.json
+        redis-conf:
+          sharding-func: com.netease.nim.camellia.core.client.env.CRC16HashTagShardingFunc
+          min-idle: 100
+          max-idle: 400
+          max-total: 400
+          max-wait-millis: 3000
+          timeout-millis: 2000
+          connect-timeout-millis: 1000
+          preheat: true
+          close-idle-connection: true
+          check-idle-connection-threshold-seconds: 300
+          close-idle-connection-delay-seconds: 30
+
   resource-sharding-singlewrite-multiread.json: |
     {
       "type": "sharding",
