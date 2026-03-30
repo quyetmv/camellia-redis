@@ -30,7 +30,7 @@ data:
     proxy.cluster.mode.heartbeat.interval.seconds=5
     proxy.cluster.mode.heartbeat.timeout.seconds=20
 
-  application-sharding-singlewrite-multiread.yml: |
+  application-cluster.yml: |
     server:
       port: 6380
     spring:
@@ -58,7 +58,7 @@ data:
         "check.redis.resource.valid.not.active.threshold.sceonds": 300
         "proxy.cluster.mode.command.move.always": true
         "cluster.mode.consensus.leader.selector.class.name": "com.netease.nim.camellia.redis.proxy.cluster.provider.RedisConsensusLeaderSelector"
-        "redis.consensus.leader.selector.redis.url": "redis://@xx.xx.xx.xx:6379"
+        "redis.consensus.leader.selector.redis.url": "redis://@xxxx:6379"
         "redis.consensus.leader.selector.redis.key": "camellia:proxy:leader:slotmap:v1"
       transpond:
         type: local 
@@ -79,7 +79,7 @@ data:
           fail-ban-millis: 5000
 
 
-  application.yml: |
+  application-standalone.yml: |
     server:
       port: 6380
 
@@ -90,6 +90,7 @@ data:
     camellia-redis-proxy:
 
       console-port: 16379
+      password: camellia_admin_pass
 
       # ======================
       # NETTY THREAD (4 vCPU)
@@ -101,7 +102,7 @@ data:
       # ======================
       # MONITOR
       # ======================
-      monitor-enable: false
+      monitor-enable: true
       monitor-interval-seconds: 10
 
       plugins:
@@ -152,51 +153,6 @@ data:
           # ======================
           # CONNECTION LIFECYCLE
           # ======================
-          preheat: true
-          close-idle-connection: true
-          check-idle-connection-threshold-seconds: 300
-          close-idle-connection-delay-seconds: 30
-
-  application-standalone.yml: |
-    server:
-      port: 6380
-
-    spring:
-      application:
-        name: camellia-redis-proxy-server
-
-    camellia-redis-proxy:
-      console-port: 16379
-      password: camellia_admin_pass
-
-      netty:
-        boss-thread: 1
-        worker-thread: 8
-
-      monitor-enable: false
-      monitor-interval-seconds: 10
-
-      plugins:
-        - monitorPlugin
-
-      config:
-        "check.redis.resource.valid.not.active.threshold.sceonds": 300
-        "redis.fail.fast.enable": true
-        "redis.fail.fast.threshold": 5
-
-      transpond:
-        type: local
-        local:
-          type: complex
-          json-file: resource-sharding-singlewrite-multiread.json
-        redis-conf:
-          sharding-func: com.netease.nim.camellia.core.client.env.CRC16HashTagShardingFunc
-          min-idle: 100
-          max-idle: 400
-          max-total: 400
-          max-wait-millis: 3000
-          timeout-millis: 2000
-          connect-timeout-millis: 1000
           preheat: true
           close-idle-connection: true
           check-idle-connection-threshold-seconds: 300

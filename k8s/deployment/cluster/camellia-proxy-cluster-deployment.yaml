@@ -1,18 +1,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: deploy-db-camellia
+  name: deploy-camellia-proxy-cluster
   labels:
-    app: camellia-proxy-deploy
+    app: camellia-proxy-cluster
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: camellia-proxy-deploy
+      app: camellia-proxy-cluster
   template:
     metadata:
       labels:
-        app: camellia-proxy-deploy
+        app: camellia-proxy-cluster
     spec:
       enableServiceLinks: false
       containers:
@@ -68,7 +68,7 @@ spec:
           volumeMounts:
             - name: cm-db-camellia
               mountPath: /opt/camellia-redis-proxy/BOOT-INF/classes/application.yml
-              subPath: application-sharding-singlewrite-multiread.yml
+              subPath: application-cluster.yml
             - name: cm-db-camellia
               mountPath: /opt/camellia-redis-proxy/BOOT-INF/classes/logback.xml
               subPath: logback.xml

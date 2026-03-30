@@ -5,6 +5,8 @@ metadata:
   labels:
     app.kubernetes.io/name: camellia-proxy
 spec:
+  targetLabels:
+    - camellia_topology
   selector:
     matchLabels:
       monitoring.camellia.io/enabled: "true"

@@ -1,0 +1,29 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: redis-pools-monitor
+  labels:
+    app: redis
+    monitoring: redis-backend
+spec:
+  selector:
+    matchLabels:
+      monitoring.redis.io/enabled: "true"
+  endpoints:
+    - port: metrics
+      interval: 30s
+      scrapeTimeout: 10s
+      path: /metrics
+      scheme: http
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_service_label_redis_backend]
+          targetLabel: redis_pool
+        - sourceLabels: [__meta_kubernetes_service_annotation_]
+          targetLabel: container
+        - sourceLabels: [__meta_kubernetes_pod_name]
+          action: replace
+          targetLabel: pod_name
+        - sourceLabels: [__meta_kubernetes_pod_controller_kind,__meta_kubernetes_pod_controller_name]
+          regex: (Deployment);(.*)
+          action: replace
+          targetLabel: deployment

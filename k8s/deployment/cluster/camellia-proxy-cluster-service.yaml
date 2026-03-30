@@ -1,10 +1,11 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: svc-db-camellia-deploy
+  name: svc-camellia-proxy-cluster
   labels:
     app.kubernetes.io/name: camellia-proxy
     app.kubernetes.io/component: metrics
+    camellia_topology: cluster
     monitoring.camellia.io/enabled: "true"
   annotations:
     prometheus.io/scrape: "true"
@@ -25,4 +26,4 @@ spec:
       targetPort: 16379
       nodePort: 30479
   selector:
-    app: camellia-proxy-deploy
+    app: camellia-proxy-cluster

@@ -23,7 +23,7 @@ spec:
             - sleep infinity
           env:
             - name: REDIS_BENCHMARK_HOST
-              value: svc-db-camellia-deploy
+              value: svc-camellia-proxy-cluster
             - name: REDIS_BENCHMARK_PORT
               value: "6380"
             - name: REDIS_BENCHMARK_NODEPORT_HOST
