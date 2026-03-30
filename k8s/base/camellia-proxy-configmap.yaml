@@ -30,6 +30,29 @@ data:
     proxy.cluster.mode.heartbeat.interval.seconds=5
     proxy.cluster.mode.heartbeat.timeout.seconds=20
 
+  camellia-redis-proxy-shared-auth.properties: |
+    port=6380
+    application.name=camellia-redis-proxy-shared-auth
+    proxy.mode=standalone
+    netty.transport.mode=auto
+
+    monitor.enable=true
+    monitor.interval.seconds=10
+    console.port=16379
+    proxy.plugin.list=monitorPlugin,bigKeyPlugin,hotKeyPlugin
+
+    dynamic.conf.reload.interval.seconds=2
+
+    route.conf.provider=multi_tenants_v1
+    multi.tenant.route.default.bid=101
+    multi.tenant.route.default.bgroup=prod
+    multi.tenant.route.conf.reload.interval.millis=2000
+    multi.tenant.route.conf.remove.enable=true
+
+    svcOrderPwd.password.101.prod.route.conf={"type":"sharding","operation":{"bucketSize":3,"operationMap":{"0":{"read":"redis://@redis-pool-1:6379","type":"rw_separate","write":"redis://@redis-pool-1:6379"},"1":{"read":"redis://@redis-pool-2:6379","type":"rw_separate","write":"redis://@redis-pool-2:6379"},"2":{"read":"redis://@redis-pool-3:6379","type":"rw_separate","write":"redis://@redis-pool-3:6379"}}}}
+    svcPaymentPwd.password.102.prod.route.conf={"type":"sharding","operation":{"bucketSize":3,"operationMap":{"0":{"read":"redis://@redis-pool-4:6379","type":"rw_separate","write":"redis://@redis-pool-4:6379"},"1":{"read":"redis://@redis-pool-5:6379","type":"rw_separate","write":"redis://@redis-pool-5:6379"},"2":{"read":"redis://@redis-pool-6:6379","type":"rw_separate","write":"redis://@redis-pool-6:6379"}}}}
+    svcSearchPwd.password.103.prod.route.conf={"type":"sharding","operation":{"bucketSize":3,"operationMap":{"0":{"read":"redis://@redis-pool-7:6379","type":"rw_separate","write":"redis://@redis-pool-7:6379"},"1":{"read":"redis://@redis-pool-8:6379","type":"rw_separate","write":"redis://@redis-pool-8:6379"},"2":{"read":"redis://@redis-pool-9:6379","type":"rw_separate","write":"redis://@redis-pool-9:6379"}}}}
+
   application-cluster.yml: |
     server:
       port: 6380
@@ -158,6 +181,126 @@ data:
           check-idle-connection-threshold-seconds: 300
           close-idle-connection-delay-seconds: 30
 
+  application-service-order.yml: |
+    server:
+      port: 6380
+    spring:
+      application:
+        name: camellia-redis-proxy-order
+    camellia-redis-proxy:
+      console-port: 16379
+      password: camellia_admin_pass
+      netty:
+        boss-thread: 1
+        worker-thread: 4
+      monitor-enable: true
+      monitor-interval-seconds: 10
+      plugins:
+        - monitorPlugin
+        - bigKeyPlugin
+        - hotKeyPlugin
+      transpond:
+        type: local
+        local:
+          type: complex
+          json-file: resource-service-order.json
+        redis-conf:
+          sharding-func: com.netease.nim.camellia.core.client.env.CRC16HashTagShardingFunc
+          preheat: true
+          close-idle-connection: true
+          check-idle-connection-threshold-seconds: 300
+          close-idle-connection-delay-seconds: 30
+
+  application-service-payment.yml: |
+    server:
+      port: 6380
+    spring:
+      application:
+        name: camellia-redis-proxy-payment
+    camellia-redis-proxy:
+      console-port: 16379
+      password: camellia_admin_pass
+      netty:
+        boss-thread: 1
+        worker-thread: 4
+      monitor-enable: true
+      monitor-interval-seconds: 10
+      plugins:
+        - monitorPlugin
+        - bigKeyPlugin
+        - hotKeyPlugin
+      transpond:
+        type: local
+        local:
+          type: complex
+          json-file: resource-service-payment.json
+        redis-conf:
+          sharding-func: com.netease.nim.camellia.core.client.env.CRC16HashTagShardingFunc
+          preheat: true
+          close-idle-connection: true
+          check-idle-connection-threshold-seconds: 300
+          close-idle-connection-delay-seconds: 30
+
+  application-service-search.yml: |
+    server:
+      port: 6380
+    spring:
+      application:
+        name: camellia-redis-proxy-search
+    camellia-redis-proxy:
+      console-port: 16379
+      password: camellia_admin_pass
+      netty:
+        boss-thread: 1
+        worker-thread: 4
+      monitor-enable: true
+      monitor-interval-seconds: 10
+      plugins:
+        - monitorPlugin
+        - bigKeyPlugin
+        - hotKeyPlugin
+      transpond:
+        type: local
+        local:
+          type: complex
+          json-file: resource-service-search.json
+        redis-conf:
+          sharding-func: com.netease.nim.camellia.core.client.env.CRC16HashTagShardingFunc
+          preheat: true
+          close-idle-connection: true
+          check-idle-connection-threshold-seconds: 300
+          close-idle-connection-delay-seconds: 30
+
+  application-key-routing.yml: |
+    server:
+      port: 6380
+    spring:
+      application:
+        name: camellia-redis-proxy-key-routing
+    camellia-redis-proxy:
+      console-port: 16379
+      password: camellia_admin_pass
+      netty:
+        boss-thread: 1
+        worker-thread: 8
+      monitor-enable: true
+      monitor-interval-seconds: 10
+      plugins:
+        - monitorPlugin
+        - bigKeyPlugin
+        - hotKeyPlugin
+      transpond:
+        type: local
+        local:
+          type: complex
+          json-file: resource-key-routing.json
+        redis-conf:
+          sharding-func: com.netease.nim.camellia.core.client.env.CRC16HashTagShardingFunc
+          preheat: true
+          close-idle-connection: true
+          check-idle-connection-threshold-seconds: 300
+          close-idle-connection-delay-seconds: 30
+
   resource-sharding-singlewrite-multiread.json: |
     {
       "type": "sharding",
@@ -221,6 +364,73 @@ data:
           "7": { "read": "redis://@redis-pool-8:6379", "type": "rw_separate", "write": "redis://@redis-pool-8:6379" },
           "8": { "read": "redis://@redis-pool-9:6379", "type": "rw_separate", "write": "redis://@redis-pool-9:6379" }
 
+        }
+      }
+    }
+
+  resource-service-order.json: |
+    {
+      "type": "simple",
+      "operation": {
+        "read": {
+          "resources": [
+            "redis://@redis-pool-2:6379",
+            "redis://@redis-pool-3:6379"
+          ],
+          "type": "random"
+        },
+        "type": "rw_separate",
+        "write": "redis://@redis-pool-1:6379"
+      }
+    }
+
+  resource-service-payment.json: |
+    {
+      "type": "simple",
+      "operation": {
+        "read": {
+          "resources": [
+            "redis://@redis-pool-5:6379",
+            "redis://@redis-pool-6:6379"
+          ],
+          "type": "random"
+        },
+        "type": "rw_separate",
+        "write": "redis://@redis-pool-4:6379"
+      }
+    }
+
+  resource-service-search.json: |
+    {
+      "type": "simple",
+      "operation": {
+        "read": {
+          "resources": [
+            "redis://@redis-pool-8:6379",
+            "redis://@redis-pool-9:6379"
+          ],
+          "type": "random"
+        },
+        "type": "rw_separate",
+        "write": "redis://@redis-pool-7:6379"
+      }
+    }
+
+  resource-key-routing.json: |
+    {
+      "type": "sharding",
+      "operation": {
+        "bucketSize": 9,
+        "operationMap": {
+          "0": { "read": "redis://@redis-pool-1:6379", "type": "rw_separate", "write": "redis://@redis-pool-1:6379" },
+          "1": { "read": "redis://@redis-pool-2:6379", "type": "rw_separate", "write": "redis://@redis-pool-2:6379" },
+          "2": { "read": "redis://@redis-pool-3:6379", "type": "rw_separate", "write": "redis://@redis-pool-3:6379" },
+          "3": { "read": "redis://@redis-pool-4:6379", "type": "rw_separate", "write": "redis://@redis-pool-4:6379" },
+          "4": { "read": "redis://@redis-pool-5:6379", "type": "rw_separate", "write": "redis://@redis-pool-5:6379" },
+          "5": { "read": "redis://@redis-pool-6:6379", "type": "rw_separate", "write": "redis://@redis-pool-6:6379" },
+          "6": { "read": "redis://@redis-pool-7:6379", "type": "rw_separate", "write": "redis://@redis-pool-7:6379" },
+          "7": { "read": "redis://@redis-pool-8:6379", "type": "rw_separate", "write": "redis://@redis-pool-8:6379" },
+          "8": { "read": "redis://@redis-pool-9:6379", "type": "rw_separate", "write": "redis://@redis-pool-9:6379" }
         }
       }
     }

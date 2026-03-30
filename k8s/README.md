@@ -38,6 +38,14 @@ k8s/
 │   ├── redis-backend-dashboard.json
 │   ├── redis-backend-dashboard-configmap.yaml
 │   └── kustomization.yaml
+├── dashboard/
+│   ├── camellia-dashboard-configmap.yaml
+│   ├── camellia-dashboard-secret.yaml
+│   ├── camellia-dashboard-mysql.yaml
+│   ├── camellia-dashboard-redis.yaml
+│   ├── camellia-dashboard-deployment.yaml
+│   ├── camellia-dashboard-service.yaml
+│   └── kustomization.yaml
 ├── benchmark/
 │   ├── redis-benchmark-client-deployment.yaml
 │   └── kustomization.yaml
@@ -50,6 +58,18 @@ k8s/
     │   ├── camellia-proxy-cluster-deployment.yaml
     │   ├── camellia-proxy-cluster-service.yaml
     │   └── kustomization.yaml
+    ├── shared-auth/
+    │   ├── camellia-proxy-shared-auth-deployment.yaml
+    │   ├── camellia-proxy-shared-auth-service.yaml
+    │   └── kustomization.yaml
+    ├── per-service/
+    │   ├── camellia-proxy-services-deployments.yaml
+    │   ├── camellia-proxy-services.yaml
+    │   └── kustomization.yaml
+    ├── key-routing/
+    │   ├── camellia-proxy-key-routing-deployment.yaml
+    │   ├── camellia-proxy-key-routing-service.yaml
+    │   └── kustomization.yaml
     └── standalone/
         ├── camellia-proxy-standalone-deployment.yaml
         ├── camellia-proxy-standalone-service.yaml
@@ -61,9 +81,13 @@ k8s/
 - `base/`: tài nguyên dùng chung, gồm `ConfigMap` và 9 Redis backend
 - `monitoring/`: `ServiceMonitor` để Prometheus Operator scrape metrics từ Camellia proxy và Redis backend
 - `grafana/`: dashboard JSON và `ConfigMap` import dashboard Redis backend vào Grafana nếu cluster có sidecar đọc label `grafana_dashboard=1`
+- `dashboard/`: Camellia Dashboard app + MySQL + Redis cache cho control plane/API
 - `benchmark/`: benchmark client pod để chạy `redis-benchmark` trong cluster
 - `statefulset/`: topology proxy kiểu `StatefulSet`
 - `deployment/cluster/`: overlay `cluster`, mount `application-cluster.yml`
+- `deployment/shared-auth/`: một cụm proxy chung, route theo password service với `multi_tenants_v1`
+- `deployment/per-service/`: mỗi service có một proxy endpoint riêng
+- `deployment/key-routing/`: một proxy chung, sharding trực tiếp trên toàn bộ 9 Redis node theo key
 - `deployment/standalone/`: overlay `standalone`, mount `application-standalone.yml`
 
 Tên file đã được đổi theo vai trò để nhìn vào là biết dùng để làm gì.
@@ -77,8 +101,12 @@ Vai trò:
 - `base/kustomization.yaml`: gom `camellia-proxy-configmap.yaml` và `redis-backends.yaml`
 - `monitoring/kustomization.yaml`: gom `camellia-proxy-servicemonitor.yaml` và `redis-backend-servicemonitor.yaml`
 - `grafana/kustomization.yaml`: gom `redis-backend-dashboard-configmap.yaml`
+- `dashboard/kustomization.yaml`: gom MySQL, Redis, `ConfigMap`, `Secret`, `Deployment` và `Service` của Camellia Dashboard
 - `statefulset/kustomization.yaml`: include `../base` + proxy `StatefulSet` + service của `StatefulSet`
 - `deployment/cluster/kustomization.yaml`: include `../../base` + proxy `Deployment` `cluster`
+- `deployment/shared-auth/kustomization.yaml`: include `../../base` + proxy `Deployment` `shared-auth`
+- `deployment/per-service/kustomization.yaml`: include `../../base` + 3 proxy `Deployment` riêng cho từng service
+- `deployment/key-routing/kustomization.yaml`: include `../../base` + proxy `Deployment` route theo key trên 9 node
 - `deployment/standalone/kustomization.yaml`: include `../../base` + proxy `Deployment` `standalone`
 - `benchmark/kustomization.yaml`: tạo một pod client để chạy `redis-benchmark`
 
@@ -89,7 +117,11 @@ cd /mnt/c/Users/quyetmv/workspace-pc/learning/labs/camellia-redis/k8s
 kubectl apply -n testing -k ./base
 kubectl apply -n testing -k ./monitoring
 kubectl apply -n monitoring -k ./grafana
+kubectl apply -n testing -k ./dashboard
 kubectl apply -n testing -k ./statefulset
+kubectl apply -n testing -k ./deployment/shared-auth
+kubectl apply -n testing -k ./deployment/per-service
+kubectl apply -n testing -k ./deployment/key-routing
 kubectl apply -n testing -k ./deployment/standalone
 kubectl apply -n testing -k ./deployment/cluster
 kubectl apply -n testing -k ./benchmark
@@ -101,7 +133,11 @@ Nếu chỉ muốn xem YAML sau khi render bởi Kustomize:
 kubectl kustomize ./base
 kubectl kustomize ./monitoring
 kubectl kustomize ./grafana
+kubectl kustomize ./dashboard
 kubectl kustomize ./statefulset
+kubectl kustomize ./deployment/shared-auth
+kubectl kustomize ./deployment/per-service
+kubectl kustomize ./deployment/key-routing
 kubectl kustomize ./deployment/standalone
 kubectl kustomize ./deployment/cluster
 kubectl kustomize ./benchmark
@@ -113,7 +149,11 @@ Nếu máy đã cài binary `kustomize` riêng:
 kustomize build ./base
 kustomize build ./monitoring
 kustomize build ./grafana
+kustomize build ./dashboard
 kustomize build ./statefulset
+kustomize build ./deployment/shared-auth
+kustomize build ./deployment/per-service
+kustomize build ./deployment/key-routing
 kustomize build ./deployment/standalone
 kustomize build ./deployment/cluster
 kustomize build ./benchmark
@@ -123,6 +163,12 @@ Bạn chỉ nên chọn 1 trong 2 cách chạy proxy:
 
 1. `Deployment`: topology mặc định, dùng profile `cluster`
 2. `StatefulSet`: topology tuỳ chọn, chỉ dùng khi cần test semantic của `StatefulSet`
+
+Ngoài ra, repo này có thêm 2 phương án để test routing nhiều service vào nhiều Redis backend:
+
+1. `deployment/shared-auth`: một cụm proxy chung, route theo password service
+2. `deployment/per-service`: mỗi service có một endpoint proxy riêng
+3. `deployment/key-routing`: một proxy chung, route theo key trên toàn bộ 9 node
 
 ## 2. Topology
 
@@ -315,6 +361,76 @@ Lưu ý:
 - Nếu dùng `kube-prometheus-stack`, Prometheus instance của bạn có thể chỉ select `ServiceMonitor` có thêm label như `release: kube-prometheus-stack`.
 - Nếu gặp trường hợp đó, patch thêm label vào cả `monitoring/camellia-proxy-servicemonitor.yaml` và `monitoring/redis-backend-servicemonitor.yaml`.
 
+## 4.2 Deploy Camellia Dashboard
+
+Overlay này deploy thêm:
+
+- `camellia-dashboard-mysql`
+- `camellia-dashboard-redis`
+- `camellia-dashboard`
+
+Ứng dụng dashboard dùng source có sẵn trong repo tại:
+
+- `learning/labs/camellia-redis/docker-compose/dashboard`
+
+### Build image
+
+Image dashboard không có sẵn public trong repo này. Cần build trước:
+
+```bash
+cd /mnt/c/Users/quyetmv/workspace-pc/learning/labs/camellia-redis/docker-compose/dashboard
+docker build -t camellia-dashboard-lab:0.1.0 .
+```
+
+Nếu cluster là `kind`:
+
+```bash
+kind load docker-image camellia-dashboard-lab:0.1.0
+```
+
+Nếu cluster là `minikube`:
+
+```bash
+minikube image load camellia-dashboard-lab:0.1.0
+```
+
+Nếu cluster khác, push image lên registry mà cluster pull được, rồi sửa image trong:
+
+- `learning/labs/camellia-redis/k8s/dashboard/camellia-dashboard-deployment.yaml`
+
+### Deploy
+
+```bash
+kubectl apply -n testing -k ./dashboard
+kubectl rollout status deployment/camellia-dashboard-mysql -n testing
+kubectl rollout status deployment/camellia-dashboard-redis -n testing
+kubectl rollout status deployment/camellia-dashboard -n testing
+```
+
+### Truy cập
+
+- Service: `camellia-dashboard`
+- NodePort: `30881`
+
+Mở:
+
+```text
+http://<node-ip>:30881/
+```
+
+API mẫu:
+
+```bash
+curl -s http://<node-ip>:30881/actuator/health
+curl -s 'http://<node-ip>:30881/camellia/api/resourceTable?bid=101&bgroup=prod'
+```
+
+### Lưu ý
+
+- Đây là dashboard/control plane riêng cho metadata route, không nằm trên data plane Redis.
+- Dashboard hiện dùng MySQL và Redis riêng trong overlay `dashboard/`.
+- Nếu bạn muốn proxy lấy route động từ dashboard, cần thêm một profile proxy khác để gọi dashboard API thay vì chỉ dùng `local json-file`.
+
 ## 5. Chạy proxy bằng Deployment
 
 Đây là topology mặc định nên dùng cho lab này.
@@ -423,6 +539,161 @@ Benchmark từ benchmark pod:
 kubectl exec -n testing "$BENCH_POD" -- \
   redis-benchmark -h svc-camellia-proxy-standalone -p 6380 -a camellia_admin_pass -t set,get -n 100000 -c 100 -P 32 -r 100000 -d 32
 ```
+
+## 6.2 Test cách 1: Một cụm proxy chung
+
+Overlay này dùng `multi_tenants_v1` để route theo password service trên cùng một endpoint.
+
+Mỗi service không còn trỏ vào 1 node đơn, mà trỏ vào một `sharding table` riêng:
+
+- `svcOrderPwd` -> shard trên `redis-pool-1`, `redis-pool-2`, `redis-pool-3`
+- `svcPaymentPwd` -> shard trên `redis-pool-4`, `redis-pool-5`, `redis-pool-6`
+- `svcSearchPwd` -> shard trên `redis-pool-7`, `redis-pool-8`, `redis-pool-9`
+
+Apply:
+
+```bash
+kubectl apply -n testing -k ./deployment/shared-auth
+```
+
+Kiểm tra:
+
+```bash
+kubectl get deploy,pods,svc -n testing | grep shared-auth
+kubectl rollout status deployment/deploy-camellia-proxy-shared-auth -n testing
+```
+
+NodePort:
+
+- Redis proxy: `30680`
+- Console/metrics: `30679`
+
+Test:
+
+```bash
+redis-cli -h <node-ip> -p 30680 -a svcOrderPwd SET order:key hello
+redis-cli -h <node-ip> -p 30680 -a svcPaymentPwd SET payment:key hello
+redis-cli -h <node-ip> -p 30680 -a svcSearchPwd SET search:key hello
+```
+
+Để nhìn rõ sharding, nên ghi nhiều key cho từng service:
+
+```bash
+for i in $(seq 1 30); do redis-cli -h <node-ip> -p 30680 -a svcOrderPwd SET "order:key:$i" "v$i"; done
+for i in $(seq 1 30); do redis-cli -h <node-ip> -p 30680 -a svcPaymentPwd SET "payment:key:$i" "v$i"; done
+for i in $(seq 1 30); do redis-cli -h <node-ip> -p 30680 -a svcSearchPwd SET "search:key:$i" "v$i"; done
+```
+
+Kiểm tra backend:
+
+```bash
+kubectl exec -n testing deploy/redis-pool-1 -- redis-cli KEYS 'order:key:*'
+kubectl exec -n testing deploy/redis-pool-2 -- redis-cli KEYS 'order:key:*'
+kubectl exec -n testing deploy/redis-pool-3 -- redis-cli KEYS 'order:key:*'
+kubectl exec -n testing deploy/redis-pool-4 -- redis-cli KEYS 'payment:key:*'
+kubectl exec -n testing deploy/redis-pool-5 -- redis-cli KEYS 'payment:key:*'
+kubectl exec -n testing deploy/redis-pool-6 -- redis-cli KEYS 'payment:key:*'
+kubectl exec -n testing deploy/redis-pool-7 -- redis-cli KEYS 'search:key:*'
+kubectl exec -n testing deploy/redis-pool-8 -- redis-cli KEYS 'search:key:*'
+kubectl exec -n testing deploy/redis-pool-9 -- redis-cli KEYS 'search:key:*'
+```
+
+## 6.3 Test cách 2: Mỗi service một proxy endpoint
+
+Overlay này tạo 3 endpoint riêng:
+
+- `svc-camellia-proxy-order` -> route tới nhóm `redis-pool-1/2/3`
+- `svc-camellia-proxy-payment` -> route tới nhóm `redis-pool-4/5/6`
+- `svc-camellia-proxy-search` -> route tới nhóm `redis-pool-7/8/9`
+
+Apply:
+
+```bash
+kubectl apply -n testing -k ./deployment/per-service
+```
+
+Kiểm tra:
+
+```bash
+kubectl get deploy,pods,svc -n testing | grep camellia-proxy-
+kubectl rollout status deployment/deploy-camellia-proxy-order -n testing
+kubectl rollout status deployment/deploy-camellia-proxy-payment -n testing
+kubectl rollout status deployment/deploy-camellia-proxy-search -n testing
+```
+
+NodePort:
+
+- order: `30780`
+- payment: `30781`
+- search: `30782`
+
+Test:
+
+```bash
+redis-cli -h <node-ip> -p 30780 -a camellia_admin_pass SET order:key hello
+redis-cli -h <node-ip> -p 30781 -a camellia_admin_pass SET payment:key hello
+redis-cli -h <node-ip> -p 30782 -a camellia_admin_pass SET search:key hello
+```
+
+Kiểm tra backend:
+
+```bash
+kubectl exec -n testing deploy/redis-pool-1 -- redis-cli GET order:key
+kubectl exec -n testing deploy/redis-pool-4 -- redis-cli GET payment:key
+kubectl exec -n testing deploy/redis-pool-7 -- redis-cli GET search:key
+```
+
+## 6.4 Test cách 3: Một proxy chung, routing theo key
+
+Overlay này tạo một endpoint chung và shard trực tiếp trên toàn bộ `redis-pool-1..9`.
+
+Apply:
+
+```bash
+kubectl apply -n testing -k ./deployment/key-routing
+```
+
+Kiểm tra:
+
+```bash
+kubectl get deploy,pods,svc -n testing | grep key-routing
+kubectl rollout status deployment/deploy-camellia-proxy-key-routing -n testing
+```
+
+NodePort:
+
+- Redis proxy: `30681`
+- Console/metrics: `30682`
+
+Test ghi nhiều key thường:
+
+```bash
+for i in $(seq 1 90); do redis-cli -h <node-ip> -p 30681 -a camellia_admin_pass SET "demo:key:$i" "v$i"; done
+```
+
+Kiểm tra phân phối trên 9 node:
+
+```bash
+kubectl exec -n testing deploy/redis-pool-1 -- redis-cli KEYS 'demo:key:*'
+kubectl exec -n testing deploy/redis-pool-2 -- redis-cli KEYS 'demo:key:*'
+kubectl exec -n testing deploy/redis-pool-3 -- redis-cli KEYS 'demo:key:*'
+kubectl exec -n testing deploy/redis-pool-4 -- redis-cli KEYS 'demo:key:*'
+kubectl exec -n testing deploy/redis-pool-5 -- redis-cli KEYS 'demo:key:*'
+kubectl exec -n testing deploy/redis-pool-6 -- redis-cli KEYS 'demo:key:*'
+kubectl exec -n testing deploy/redis-pool-7 -- redis-cli KEYS 'demo:key:*'
+kubectl exec -n testing deploy/redis-pool-8 -- redis-cli KEYS 'demo:key:*'
+kubectl exec -n testing deploy/redis-pool-9 -- redis-cli KEYS 'demo:key:*'
+```
+
+Test hash tag để ép nhiều key vào cùng shard:
+
+```bash
+redis-cli -h <node-ip> -p 30681 -a camellia_admin_pass SET '{order}:1' v1
+redis-cli -h <node-ip> -p 30681 -a camellia_admin_pass SET '{order}:2' v2
+redis-cli -h <node-ip> -p 30681 -a camellia_admin_pass SET '{order}:3' v3
+```
+
+Sau đó kiểm tra các node `redis-pool-1..9` và bạn sẽ thấy các key có cùng hash tag `{order}` nằm cùng một shard.
 
 ## 7. Test nhanh
 
@@ -585,6 +856,9 @@ kubectl apply -n testing -k ./monitoring
 Khuyến nghị:
 
 - Mặc định dùng `deployment/cluster` (`application-cluster.yml`)
+- Dùng `deployment/shared-auth` khi muốn test một cụm proxy chung cho nhiều service
+- Dùng `deployment/per-service` khi muốn test mỗi service một endpoint riêng
+- Dùng `deployment/key-routing` khi muốn test sharding trực tiếp trên toàn bộ 9 node theo key
 - Dùng `deployment/standalone` (`application-standalone.yml`) khi muốn test profile standalone
 - Không nên apply cả `StatefulSet` và `Deployment` cùng lúc trừ khi có chủ đích test cả hai topology
 
@@ -619,6 +893,29 @@ kubectl rollout restart statefulset/sts-db-camellia -n testing
 ```bash
 kubectl apply -n testing -k ./deployment/standalone
 kubectl rollout restart deployment/deploy-camellia-proxy-standalone -n testing
+```
+
+`Shared auth`:
+
+```bash
+kubectl apply -n testing -k ./deployment/shared-auth
+kubectl rollout restart deployment/deploy-camellia-proxy-shared-auth -n testing
+```
+
+`Per service`:
+
+```bash
+kubectl apply -n testing -k ./deployment/per-service
+kubectl rollout restart deployment/deploy-camellia-proxy-order -n testing
+kubectl rollout restart deployment/deploy-camellia-proxy-payment -n testing
+kubectl rollout restart deployment/deploy-camellia-proxy-search -n testing
+```
+
+`Key routing`:
+
+```bash
+kubectl apply -n testing -k ./deployment/key-routing
+kubectl rollout restart deployment/deploy-camellia-proxy-key-routing -n testing
 ```
 
 ## 12. Monitoring
@@ -658,6 +955,11 @@ kubectl describe servicemonitor camellia-proxy -n testing
 
 - `camellia_topology="cluster"`
 - `camellia_topology="standalone"`
+- `camellia_topology="shared-auth"`
+- `camellia_topology="service-order"`
+- `camellia_topology="service-payment"`
+- `camellia_topology="service-search"`
+- `camellia_topology="key-routing"`
 
 Ví dụ query:
 
@@ -824,6 +1126,24 @@ Xoá topology `Standalone`:
 kubectl delete -n testing -k ./deployment/standalone
 ```
 
+Xoá topology `Shared auth`:
+
+```bash
+kubectl delete -n testing -k ./deployment/shared-auth
+```
+
+Xoá topology `Per service`:
+
+```bash
+kubectl delete -n testing -k ./deployment/per-service
+```
+
+Xoá topology `Key routing`:
+
+```bash
+kubectl delete -n testing -k ./deployment/key-routing
+```
+
 Xoá benchmark client:
 
 ```bash
@@ -840,6 +1160,12 @@ Xoá dashboard Redis backend trong Grafana:
 
 ```bash
 kubectl delete -n monitoring -k ./grafana
+```
+
+Xoá Camellia Dashboard:
+
+```bash
+kubectl delete -n testing -k ./dashboard
 ```
 
 Xoá base resources:
