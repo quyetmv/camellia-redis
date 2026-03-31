@@ -1,0 +1,92 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-camellia-proxy-cluster-order
+  labels:
+    app.kubernetes.io/name: camellia-proxy
+    app.kubernetes.io/component: metrics
+    camellia_topology: service-order
+    monitoring.camellia.io/enabled: 'true'
+  annotations:
+    prometheus.io/scrape: 'true'
+    prometheus.io/port: '16379'
+    prometheus.io/path: /prometheus
+spec:
+  type: NodePort
+  sessionAffinity: None
+  ports:
+  - name: redis
+    port: 6380
+    targetPort: 6380
+    nodePort: 30780
+  - name: console
+    port: 16378
+    targetPort: 16378
+    nodePort: 30790
+  - name: cport
+    port: 16380
+    targetPort: 16380
+  selector:
+    app: camellia-proxy-cluster-order
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-camellia-proxy-cluster-payment
+  labels:
+    app.kubernetes.io/name: camellia-proxy
+    app.kubernetes.io/component: metrics
+    camellia_topology: service-payment
+    monitoring.camellia.io/enabled: 'true'
+  annotations:
+    prometheus.io/scrape: 'true'
+    prometheus.io/port: '16379'
+    prometheus.io/path: /prometheus
+spec:
+  type: NodePort
+  sessionAffinity: None
+  ports:
+  - name: redis
+    port: 6380
+    targetPort: 6380
+    nodePort: 30781
+  - name: console
+    port: 16378
+    targetPort: 16378
+    nodePort: 30791
+  - name: cport
+    port: 16380
+    targetPort: 16380
+  selector:
+    app: camellia-proxy-cluster-payment
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-camellia-proxy-cluster-search
+  labels:
+    app.kubernetes.io/name: camellia-proxy
+    app.kubernetes.io/component: metrics
+    camellia_topology: service-search
+    monitoring.camellia.io/enabled: 'true'
+  annotations:
+    prometheus.io/scrape: 'true'
+    prometheus.io/port: '16379'
+    prometheus.io/path: /prometheus
+spec:
+  type: NodePort
+  sessionAffinity: None
+  ports:
+  - name: redis
+    port: 6380
+    targetPort: 6380
+    nodePort: 30782
+  - name: console
+    port: 16378
+    targetPort: 16378
+    nodePort: 30792
+  - name: cport
+    port: 16380
+    targetPort: 16380
+  selector:
+    app: camellia-proxy-cluster-search

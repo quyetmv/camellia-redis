@@ -1,4 +1,4 @@
 resources:
   - ../../base
-  - camellia-proxy-standalone-deployment.yaml
-  - camellia-proxy-standalone-service.yaml
+  - camellia-proxy-deployment.yaml
+  - camellia-proxy-service.yaml

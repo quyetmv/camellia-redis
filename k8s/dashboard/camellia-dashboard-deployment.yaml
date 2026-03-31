@@ -16,8 +16,8 @@ spec:
     spec:
       containers:
         - name: dashboard
-          image: camellia-dashboard-lab:0.1.0
-          imagePullPolicy: IfNotPresent
+          image: quyetmv/camellia-dashboard:v1.4.0
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
               name: http

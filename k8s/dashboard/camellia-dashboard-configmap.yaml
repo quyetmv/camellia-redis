@@ -19,8 +19,10 @@ data:
         show-sql: false
       sql:
         init:
-          mode: always
-          schema-locations: classpath:schema.sql
+          # Đổi thành never để tránh lỗi khởi động do không tìm thấy file schema.sql trong file jar
+          # Nếu bạn muốn nạp tự động, hãy tạo 1 configmap chứa DB script và mount file đó vào container
+          mode: never
+          # schema-locations: classpath:schema.sql
           encoding: UTF-8
 
     management:
