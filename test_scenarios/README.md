@@ -1,6 +1,8 @@
 # CAMELLIA REDIS - COMPREHENSIVE TEST SUITE
 # ==========================================
 
+> Note: Tài liệu này chứa một phần nội dung cũ từ bộ test Sentinel/dashboard tổng quát. Repo hiện tại dùng các file test đang tồn tại trong `1-proxy-only/`, `2-with-dashboard/`, và stress tool `../scripts/stress_test.py`.
+
 ## 📦 Package Contents
 
 This test suite provides comprehensive testing for Camellia Redis Proxy with focus on:
@@ -14,9 +16,12 @@ This test suite provides comprehensive testing for Camellia Redis Proxy with foc
 ```
 📁 camellia-redis-test-suite/
 ├── 📊 camellia_redis_test_plan.xlsx      # Complete test plan (135 test cases)
-├── 🐍 test_camellia_sharding.py          # Automated test suite
+├── 🐍 1-proxy-only/test_proxy_core.py    # Proxy core test
+├── 🐍 1-proxy-only/test_proxy_standalone.py # Standalone/shared-auth test
+├── 🐍 2-with-dashboard/test_dashboard_integration.py # Dashboard integration test
 ├── ⚙️  camellia_dashboard_config.txt     # Dashboard configuration
 ├── 📖 TEST_SCENARIOS.md                   # Detailed test scenarios & guide
+├── 🐍 ../scripts/stress_test.py           # Service-aware stress tool
 └── 📄 README.md                            # This file
 ```
 

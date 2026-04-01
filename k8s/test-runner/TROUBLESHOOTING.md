@@ -114,29 +114,57 @@ kubectl -n testing exec -it deploy/camellia-test-runner -- env | grep -E 'TEST_S
 ```
 
 
-## 9) Gợi ý cấu hình ổn định
+## 9) Test-runner hiện kiểm gì
+
+- Preflight:
+  - key-routing cơ bản qua admin endpoint
+  - shared-auth route cho `order/payment/search`
+  - multi-key cùng slot
+- Stress workload:
+  - nhiều client đồng thời
+  - ratio `SET/GET`
+  - prefix riêng theo service
+  - phân phối `hot key` có chủ đích
+  - summary `throughput`, `latency avg/p95/p99`, `bytes`, `failures`
+
+Biến môi trường mới:
+
+- `ORDER_PASSWORD`, `PAYMENT_PASSWORD`, `SEARCH_PASSWORD`
+- `ORDER_SERVICE_PREFIX`, `PAYMENT_SERVICE_PREFIX`, `SEARCH_SERVICE_PREFIX`
+- `HOT_KEY_NAME`
+- `STRESS_CLIENTS`
+- `STRESS_REQUESTS_PER_CLIENT`
+- `SET_PERCENT`, `GET_PERCENT`
+- `HOT_KEY_PERCENT`, `HOT_KEY_COUNT`
+- `KEYSPACE`
+- `VALUE_SIZE`
+- `REPORT_EVERY`
+- `SCENARIO_DELAY_SECONDS`
+
+
+## 10) Gợi ý cấu hình ổn định
 
 - `TEST_SCENARIO=both` để chạy tuần tự cả `cluster` và `standalone`.
 - `RUN_INTERVAL_SECONDS=60` (hoặc cao hơn khi cluster đang scale/rebalance).
 - Giữ một deployment test-runner, chỉ đổi scenario bằng env.
 
 
-## 10) Note migration: từ Redis Sentinel/Cluster sang Camellia
+## 11) Note migration: từ Redis Sentinel/Cluster sang Camellia
 
-### 10.1 Về topology và semantics
+### 11.1 Về topology và semantics
 - Camellia `sharding` trên nhiều Redis standalone **không phải** Redis Cluster native.
 - Nếu app đang dùng Redis Cluster client, cần chuẩn hóa lại hành vi:
   - nên đi qua endpoint Camellia bằng Redis client thường (hoặc kiểm thử kỹ logic redirect).
 - Xác nhận lại semantics multi-key:
   - với mode cluster, các lệnh multi-key vẫn chịu ràng buộc slot; dùng hash-tag khi cần cùng slot.
 
-### 10.2 Về auth và tenant routing
+### 11.2 Về auth và tenant routing
 - Camellia có thể route theo password tenant (`shared-auth`), khác mô hình auth của Redis/Sentinel cũ.
 - Checklist:
   - map rõ `tenant -> password -> bid/bgroup/route`.
   - tách `admin password` và `tenant password`, không dùng lẫn.
 
-### 10.3 Về failover và endpoint
+### 11.3 Về failover và endpoint
 - Sentinel failover cũ là ở tầng Redis master/replica.
 - Với Camellia, failover có thêm tầng proxy + (nếu bật) consensus/leader.
 - Cần test đủ các tình huống:
@@ -145,18 +173,18 @@ kubectl -n testing exec -it deploy/camellia-test-runner -- env | grep -E 'TEST_S
   - mất 1 backend shard,
   - rolling restart.
 
-### 10.4 Về dữ liệu và phân phối key
+### 11.4 Về dữ liệu và phân phối key
 - Trước cutover, thống kê keyspace để tránh lệch tải shard sau khi đổi route.
 - Nếu đổi chiến lược route (theo key/prefix/tenant), cần đánh giá:
   - tỷ lệ hot key,
   - phân bố QPS theo shard,
   - kích thước key/value theo shard.
 
-### 10.5 Về tương thích lệnh
+### 11.5 Về tương thích lệnh
 - Kiểm tra các lệnh app đang dùng có tương thích qua proxy (đặc biệt Lua/script, transaction, pub/sub, scan pattern lớn).
 - Kiểm tra command do client tự gửi (ví dụ `CLIENT SETINFO`) để tránh log nhiễu/error giả.
 
-### 10.6 Về timeout/pool/retry
+### 11.6 Về timeout/pool/retry
 - Khi thêm tầng proxy, cần tuning lại:
   - connect timeout,
   - socket timeout,
@@ -164,7 +192,7 @@ kubectl -n testing exec -it deploy/camellia-test-runner -- env | grep -E 'TEST_S
   - pool size mỗi app instance.
 - Tránh retry quá aggressive gây bão lệnh khi backend chập chờn.
 
-### 10.7 Về quan sát và cảnh báo
+### 11.7 Về quan sát và cảnh báo
 - Bật metric và dashboard cho cả 2 tầng: Camellia + Redis backend.
 - Tối thiểu cần alert:
   - lỗi auth theo tenant,
@@ -173,9 +201,20 @@ kubectl -n testing exec -it deploy/camellia-test-runner -- env | grep -E 'TEST_S
   - fail connect backend,
   - hot key/big key.
 
-### 10.8 Về rollout an toàn
+### 11.8 Về rollout an toàn
 - Khuyến nghị rollout theo pha:
   1. Shadow read / canary 1 phần traffic.
   2. So sánh latency + error rate với hệ cũ.
   3. Cutover tăng dần.
   4. Giữ rollback plan rõ ràng (DNS/service switch, config version pin).
+
+
+## 12) Sentinel, sharding và test-runner
+
+- Nếu backend là nhiều cụm Redis Sentinel, mỗi cụm Sentinel nên được biểu diễn thành một resource `redis-sentinel://.../master-name?...`.
+- Khi ghép nhiều cụm thành sharding, Camellia route theo bucket/key; Sentinel chỉ lo failover trong từng shard.
+- Test-runner hiện không bootstrap Sentinel trực tiếp. Nó kiểm từ góc nhìn ứng dụng sau cutover, tức là app chỉ nói chuyện với Camellia endpoint.
+- Muốn kiểm migration từ app `redis-sentinel` cũ:
+  - giữ nguyên tập lệnh app-level `SET/GET/MGET`,
+  - đổi connection sang Camellia,
+  - chạy `P2/P4/P5` để xác thực isolation, prefix namespace và hot-key path.

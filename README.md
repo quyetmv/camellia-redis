@@ -126,6 +126,26 @@ Output benchmark nằm trong:
 ./scripts/benchmark-results/<timestamp>/
 ```
 
+Stress test theo service/prefix/hot-key:
+```bash
+python3 ./scripts/stress_test.py \
+  --host 127.0.0.1 \
+  --port 6379 \
+  --password tenantApwd \
+  --service order \
+  --key-prefix svc:order \
+  --clients 100 \
+  --requests 200000 \
+  --set-percent 20 \
+  --get-percent 80 \
+  --hot-key-percent 30 \
+  --hot-key-count 5
+```
+
+Ghi chú:
+- `benchmark-*.sh` dùng `redis-benchmark`, phù hợp đo throughput tổng quát với key ngẫu nhiên.
+- `stress_test.py` phù hợp mô phỏng traffic nghiệp vụ theo từng service, prefix key riêng, và hotspot key.
+
 ## 6) Endpoint
 
 | Thành phần | Endpoint |

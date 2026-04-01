@@ -21,6 +21,26 @@ Lưu ý quan trọng:
 - Nghĩa là proxy route theo `resource-sharding-singlewrite-multiread.json`, không route theo password tenant.
 - Nếu muốn multi-tenant giống Docker lab, cần đổi lại config proxy sang mode `route.conf.provider=multi_tenants_v1`.
 
+Ngoài `key-routing` thuần, repo này đã có đủ profile để mô tả các hướng dùng chính:
+
+- `standalone`: proxy độc lập, app kết nối như Redis endpoint thường.
+- `cluster`: cluster của proxy node, dùng consensus Redis để điều phối leader/MOVED giữa proxy node.
+- `shared-auth`: route theo password tenant/service.
+- `per-service`: mỗi service có endpoint proxy riêng.
+
+Nếu backend thực tế là nhiều cụm Redis Sentinel:
+
+- Mỗi cụm Sentinel tương ứng một resource `redis-sentinel://.../master-name?...`.
+- Nếu cần sharding trên nhiều cụm Sentinel, ghép các resource Sentinel đó vào `sharding.operationMap`.
+- Camellia không thay thế Sentinel failover; nó nằm phía trước để chuẩn hóa endpoint, tenant routing, plugin, metrics và routing policy.
+
+Khi migrate app đang dùng `redis-sentinel`:
+
+- App bỏ bootstrap Sentinel client, đổi sang connect tới Camellia endpoint/LB/Service.
+- Shared-auth hoặc per-service sẽ thay thế logic tách cụm/credential ở phía app.
+- Nên dùng Redis client thường cho app sau cutover, chỉ dùng cluster-aware flow khi thật sự đang nói chuyện với proxy cluster semantics và đã kiểm chứng hành vi.
+- Cần test lại multi-key, hash-tag, timeout/retry, throughput theo service, và hot-key path.
+
 ## 1. Cấu trúc thư mục
 
 ```text

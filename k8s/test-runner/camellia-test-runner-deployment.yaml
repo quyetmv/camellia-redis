@@ -18,7 +18,7 @@ spec:
         - name: runner
           image: quyetmv/camellia-test-runner:local
           imagePullPolicy: Always
-          command: ["sh", "-c", "sleep 3000"]
+          command: ["python", "-u", "/app/run-tests.py"]
           env:
             - name: PYTHONUNBUFFERED
               value: "1"
@@ -42,6 +42,40 @@ spec:
               value: "6380"
             - name: ADMIN_PASSWORD
               value: camellia_admin_pass
+            - name: ORDER_PASSWORD
+              value: svcOrderPwd
+            - name: PAYMENT_PASSWORD
+              value: svcPaymentPwd
+            - name: SEARCH_PASSWORD
+              value: svcSearchPwd
+            - name: ORDER_SERVICE_PREFIX
+              value: svc:order
+            - name: PAYMENT_SERVICE_PREFIX
+              value: svc:payment
+            - name: SEARCH_SERVICE_PREFIX
+              value: svc:search
+            - name: HOT_KEY_NAME
+              value: session:{hot-user}:profile
+            - name: STRESS_CLIENTS
+              value: "24"
+            - name: STRESS_REQUESTS_PER_CLIENT
+              value: "2000"
+            - name: SET_PERCENT
+              value: "30"
+            - name: GET_PERCENT
+              value: "70"
+            - name: HOT_KEY_PERCENT
+              value: "20"
+            - name: HOT_KEY_COUNT
+              value: "8"
+            - name: KEYSPACE
+              value: "50000"
+            - name: VALUE_SIZE
+              value: "128"
+            - name: REPORT_EVERY
+              value: "500"
+            - name: SCENARIO_DELAY_SECONDS
+              value: "3"
             - name: RUN_FOREVER
               value: "true"
             - name: RUN_INTERVAL_SECONDS

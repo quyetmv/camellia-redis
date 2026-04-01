@@ -1,6 +1,8 @@
 # CAMELLIA REDIS - SHARDING & MULTI-TENANCY TEST SCENARIOS
 # =========================================================
 
+> Note: Một phần hướng dẫn bên dưới phản ánh môi trường Sentinel tổng quát. Với repo hiện tại, bộ test chạy thực tế là `1-proxy-only/test_proxy_core.py`, `1-proxy-only/test_proxy_standalone.py`, `2-with-dashboard/test_dashboard_integration.py`, và `../scripts/stress_test.py`.
+
 ## TABLE OF CONTENTS
 1. Test Environment Setup
 2. Automated Test Execution
