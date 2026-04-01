@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: camellia-test-runner
+  labels:
+    app: camellia-test-runner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: camellia-test-runner
+  template:
+    metadata:
+      labels:
+        app: camellia-test-runner
+    spec:
+      containers:
+        - name: runner
+          image: quyetmv/camellia-test-runner:local
+          imagePullPolicy: Always
+          command: ["sh", "-c", "sleep 3000"]
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: TEST_SCENARIO
+              value: both
+            - name: KEY_ROUTING_HOST_CLUSTER
+              value: svc-camellia-proxy-cluster-key-routing
+            - name: SHARED_AUTH_HOST_CLUSTER
+              value: svc-camellia-proxy-cluster-shared-auth
+            - name: KEY_ROUTING_PORT_CLUSTER
+              value: "6380"
+            - name: SHARED_AUTH_PORT_CLUSTER
+              value: "6380"
+            - name: KEY_ROUTING_HOST_STANDALONE
+              value: svc-camellia-proxy-standalone-key-routing
+            - name: SHARED_AUTH_HOST_STANDALONE
+              value: svc-camellia-proxy-standalone-shared-auth
+            - name: KEY_ROUTING_PORT_STANDALONE
+              value: "6380"
+            - name: SHARED_AUTH_PORT_STANDALONE
+              value: "6380"
+            - name: ADMIN_PASSWORD
+              value: camellia_admin_pass
+            - name: RUN_FOREVER
+              value: "true"
+            - name: RUN_INTERVAL_SECONDS
+              value: "60"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
