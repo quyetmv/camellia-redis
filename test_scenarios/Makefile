@@ -4,13 +4,15 @@ NAMESPACE = testing
 
 # Lấy địa chỉ IP của Node K8s đầu tiên (Internal IP)
 NODE_IP := $(shell kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}' 2>/dev/null || echo localhost)
-
+CLIENT_MODE= standalone
 # Detect NodePorts
 KEY_ROUTING_PORT := $(shell kubectl get svc svc-camellia-proxy-cluster-key-routing -n $(NAMESPACE) -o jsonpath='{.spec.ports[0].nodePort}' 2>/dev/null || echo 30681)
 SHARED_AUTH_PORT := $(shell kubectl get svc svc-camellia-proxy-cluster-shared-auth -n $(NAMESPACE) -o jsonpath='{.spec.ports[0].nodePort}' 2>/dev/null || echo 30680)
 DASHBOARD_PORT    := $(shell kubectl get svc svc-camellia-dashboard -n $(NAMESPACE) -o jsonpath='{.spec.ports[0].nodePort}' 2>/dev/null || echo 30881)
+KEY_ROUTING_PORT_STANDALONE := $(shell kubectl get svc svc-camellia-proxy-standalone-key-routing -n $(NAMESPACE) -o jsonpath='{.spec.ports[0].nodePort}' 2>/dev/null || echo 31681)
+SHARED_AUTH_PORT_STANDALONE := $(shell kubectl get svc svc-camellia-proxy-standalone-shared-auth -n $(NAMESPACE) -o jsonpath='{.spec.ports[0].nodePort}' 2>/dev/null || echo 31680)
 
-.PHONY: all info test-proxy test-dashboard clean
+.PHONY: all info test-proxy test-proxy-standalone test-dashboard clean
 
 all: test-proxy
 
@@ -37,6 +39,15 @@ test-proxy: info
 	KEY_ROUTING_PORT=$(KEY_ROUTING_PORT) \
 	SHARED_AUTH_PORT=$(SHARED_AUTH_PORT) \
 	python3 test_proxy_core.py
+
+# Test Suite standalone-only (không dùng cluster client)
+test-proxy-standalone: info
+	@echo ">> Chạy PROXY-ONLY Standalone Test Suite..."
+	cd 1-proxy-only && \
+	PROXY_HOST=$(NODE_IP) \
+	KEY_ROUTING_PORT=$(KEY_ROUTING_PORT_STANDALONE) \
+	SHARED_AUTH_PORT=$(SHARED_AUTH_PORT_STANDALONE) \
+	python3 test_proxy_standalone.py
 
 # Test Suite 2: Test tích hợp với Dashboard
 test-dashboard: info

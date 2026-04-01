@@ -1,23 +1,23 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: deploy-camellia-proxy-cluster
+  name: deploy-camellia-proxy-standalone
   labels:
-    app: camellia-proxy-cluster
+    app: camellia-proxy-standalone
 spec:
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
-      app: camellia-proxy-cluster
+      app: camellia-proxy-standalone
   template:
     metadata:
       labels:
-        app: camellia-proxy-cluster
+        app: camellia-proxy-standalone
     spec:
       enableServiceLinks: false
       containers:
       - name: container-camellia
-        image: 48n6e/camellia-redis-proxy:1.3.7-jdk-21-0.0.1
+        image: 48n6e/camellia-redis-proxy:1.4.0-jdk-21-0.0.1
         command:
         - java
         - -XX:+UseG1GC
@@ -48,30 +48,27 @@ spec:
         - --add-opens
         - java.base/sun.net.util=ALL-UNNAMED
         - -Xms128m
-        - -Xmx8192m
+        - -Xmx1024m
         - -server
-        - org.springframework.boot.loader.JarLauncher
+        - org.springframework.boot.loader.launch.JarLauncher
         resources:
           requests:
-            memory: 100Mi
-            cpu: '1'
+            memory: 128Mi
+            cpu: 250m
           limits:
-            memory: 8Gi
-            cpu: '4'
+            memory: 1Gi
+            cpu: '1'
         ports:
         - containerPort: 6380
           name: redis
           protocol: TCP
-        - containerPort: 16378
+        - containerPort: 16379
           name: console
-          protocol: TCP
-        - containerPort: 16380
-          name: cport
           protocol: TCP
         volumeMounts:
         - name: cm-db-camellia
-          mountPath: /opt/camellia-redis-proxy/BOOT-INF/classes/application.yml
-          subPath: application-cluster.yml
+          mountPath: /opt/camellia-redis-proxy/BOOT-INF/classes/camellia-redis-proxy.properties
+          subPath: camellia-redis-proxy-standalone.properties
         - name: cm-db-camellia
           mountPath: /opt/camellia-redis-proxy/BOOT-INF/classes/logback.xml
           subPath: logback.xml

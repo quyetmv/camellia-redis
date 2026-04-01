@@ -18,9 +18,9 @@ spec:
         - name: mysql
           image: mysql:8.4
           args:
+            - --innodb_use_native_aio=0
             - --character-set-server=utf8mb4
             - --collation-server=utf8mb4_unicode_ci
-            - --innodb_use_native_aio=0
           env:
             - name: MYSQL_ROOT_PASSWORD
               valueFrom:

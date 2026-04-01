@@ -18,10 +18,10 @@ spec:
   - name: redis
     port: 6380
     targetPort: 6380
-    nodePort: 30681
+    nodePort: 31681
   - name: console
     port: 16379
     targetPort: 16379
-    nodePort: 30682
+    nodePort: 31682
   selector:
     app: camellia-proxy-standalone-key-routing

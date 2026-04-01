@@ -18,11 +18,11 @@ spec:
   - name: redis
     port: 6380
     targetPort: 6380
-    nodePort: 30780
+    nodePort: 31780
   - name: console
     port: 16379
     targetPort: 16379
-    nodePort: 30790
+    nodePort: 31790
   selector:
     app: camellia-proxy-standalone-order
 ---
@@ -46,11 +46,11 @@ spec:
   - name: redis
     port: 6380
     targetPort: 6380
-    nodePort: 30781
+    nodePort: 31781
   - name: console
     port: 16379
     targetPort: 16379
-    nodePort: 30791
+    nodePort: 31791
   selector:
     app: camellia-proxy-standalone-payment
 ---
@@ -74,10 +74,10 @@ spec:
   - name: redis
     port: 6380
     targetPort: 6380
-    nodePort: 30782
+    nodePort: 31782
   - name: console
     port: 16379
     targetPort: 16379
-    nodePort: 30792
+    nodePort: 31792
   selector:
     app: camellia-proxy-standalone-search

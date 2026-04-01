@@ -11,6 +11,11 @@ CLIENT_MODE = os.environ.get("CLIENT_MODE", "standalone").lower()
 KEY_ROUTING_PORT = int(os.environ.get("KEY_ROUTING_PORT", 30681))
 SHARED_AUTH_PORT = int(os.environ.get("SHARED_AUTH_PORT", 30680))
 PASSWORD = "camellia_admin_pass" # Default pass in static config
+REDIS_CLIENT_KWARGS = {
+    "decode_responses": True,
+    "lib_name": None,
+    "lib_version": None,
+}
 
 class Colors:
     OKGREEN = '\033[92m'
@@ -27,14 +32,14 @@ def print_info(msg): print(f"  {Colors.WARNING}→ {msg}{Colors.ENDC}")
 def get_conn(port, password=None):
     """Kết nối thông thường - dùng CLIENT_MODE để quyết định standalone/cluster."""
     if CLIENT_MODE == "cluster":
-        return redis.RedisCluster(host=PROXY_HOST, port=port, password=password, decode_responses=True)
-    return redis.Redis(host=PROXY_HOST, port=port, password=password, decode_responses=True)
+        return redis.RedisCluster(host=PROXY_HOST, port=port, password=password, **REDIS_CLIENT_KWARGS)
+    return redis.Redis(host=PROXY_HOST, port=port, password=password, **REDIS_CLIENT_KWARGS)
 
 def get_conn_standalone(port, password=None):
     """Luôn dùng standalone client - dành cho shared-auth (multi-tenant by password).
     Shared-Auth Proxy nhận AUTH, dùng password để route tenant, không forward xuống backend.
     RedisCluster client sẽ gửi thêm AUTH xuống backend gây lỗi 'no password is set'."""
-    return redis.Redis(host=PROXY_HOST, port=port, password=password, decode_responses=True)
+    return redis.Redis(host=PROXY_HOST, port=port, password=password, **REDIS_CLIENT_KWARGS)
 
 def test_proxy_basic_ops():
     print_test("P1", "Basic Key Routing Proxy Ops")
@@ -61,7 +66,10 @@ def test_shared_auth_static():
     success = True
     for pwd, name in tenants.items():
         try:
-            r = get_conn_standalone(SHARED_AUTH_PORT, pwd)
+            if CLIENT_MODE == "cluster":
+                r = get_conn(SHARED_AUTH_PORT, pwd)
+            else:
+                r = get_conn_standalone(SHARED_AUTH_PORT, pwd)
             test_key = f"tenant:{name}:test"
             r.set(test_key, "auth_ok")
             if r.get(test_key) == "auth_ok":
@@ -70,7 +78,7 @@ def test_shared_auth_static():
             else:
                 success = False
         except Exception as e:
-            print_fail(f"Auth failed for {name}: {e}")
+            print_fail(f"Tenant check failed for {name}: {e}")
             success = False
     return success
 

@@ -15,6 +15,15 @@ data:
       <logger name="com.netease.nim" level="INFO" additivity="false">
         <appender-ref ref="STDOUT" />
       </logger>
+      <logger name="camellia.redis.proxy.stats" level="WARN" additivity="false">
+        <appender-ref ref="STDOUT" />
+      </logger>
+      <logger name="com.netease.nim.camellia.redis.proxy.route.DefaultRouteConfProvider" level="WARN" additivity="false">
+        <appender-ref ref="STDOUT" />
+      </logger>
+      <logger name="com.netease.nim.camellia.redis.proxy.route.RouteConfProvider" level="WARN" additivity="false">
+        <appender-ref ref="STDOUT" />
+      </logger>
 
       <!-- enable debug khi cần -->
       <!-- <logger name="com.netease.nim.camellia.redis.proxy" level="DEBUG"/> -->
@@ -73,19 +82,15 @@ data:
       "operation": {
         "bucketSize": 9,
         "operationMap": {
-
           "0": { "read": "redis://@redis-pool-1:6379", "type": "rw_separate", "write": "redis://@redis-pool-1:6379" },
           "1": { "read": "redis://@redis-pool-2:6379", "type": "rw_separate", "write": "redis://@redis-pool-2:6379" },
           "2": { "read": "redis://@redis-pool-3:6379", "type": "rw_separate", "write": "redis://@redis-pool-3:6379" },
-
           "3": { "read": "redis://@redis-pool-4:6379", "type": "rw_separate", "write": "redis://@redis-pool-4:6379" },
           "4": { "read": "redis://@redis-pool-5:6379", "type": "rw_separate", "write": "redis://@redis-pool-5:6379" },
           "5": { "read": "redis://@redis-pool-6:6379", "type": "rw_separate", "write": "redis://@redis-pool-6:6379" },
-
           "6": { "read": "redis://@redis-pool-7:6379", "type": "rw_separate", "write": "redis://@redis-pool-7:6379" },
           "7": { "read": "redis://@redis-pool-8:6379", "type": "rw_separate", "write": "redis://@redis-pool-8:6379" },
           "8": { "read": "redis://@redis-pool-9:6379", "type": "rw_separate", "write": "redis://@redis-pool-9:6379" }
-
         }
       }
     }
@@ -157,205 +162,9 @@ data:
       }
     }
 
-  application-standalone.yml: |-
-    server:
-      port: 6380
-
-    spring:
-      application:
-        name: camellia-redis-proxy-server
-
-    camellia-redis-proxy:
-
-      console-port: 16379
-      password: camellia_admin_pass
-
-      # ======================
-      # NETTY THREAD (4 vCPU)
-      # ======================
-      netty:
-        boss-thread: 1
-        worker-thread: 8   # ~2x CPU → optimal
-
-      # ======================
-      # MONITOR
-      # ======================
-      monitor-enable: true
-      monitor-interval-seconds: 10
-
-      plugins:
-        - monitorPlugin
-        - bigKeyPlugin
-        - hotKeyPlugin
-        - hotKeyCachePlugin
-
-      # ======================
-      # GLOBAL CONFIG
-      # ======================
-      config:
-        "check.redis.resource.valid.not.active.threshold.seconds": 300
-        "redis.fail.fast.enable": true
-        "redis.fail.fast.threshold": 5
-
-      # ======================
-      # TRANSpond (ROUTING)
-      # ======================
-      transpond:
-        type: local
-
-        local:
-          type: complex
-          json-file: resource-sharding-singlewrite-multiread.json
-
-        redis-conf:
-
-          # ======================
-          # SHARDING
-          # ======================
-          sharding-func: com.netease.nim.camellia.core.client.env.CRC16HashTagShardingFunc
-
-          # ======================
-          # CONNECTION POOL
-          # ======================
-          min-idle: 100
-          max-idle: 400
-          max-total: 400
-          max-wait-millis: 3000
-
-          # ======================
-          # TIMEOUT
-          # ======================
-          timeout-millis: 2000
-          connect-timeout-millis: 1000
-
-          # ======================
-          # CONNECTION LIFECYCLE
-          # ======================
-          preheat: true
-          close-idle-connection: true
-          check-idle-connection-threshold-seconds: 300
-          close-idle-connection-delay-seconds: 30
-
-  application-standalone-key-routing.yml: |-
-    server:
-      port: 6380
-    spring:
-      application:
-        name: camellia-redis-proxy-key-routing
-    camellia-redis-proxy:
-      console-port: 16379
-      password: camellia_admin_pass
-      netty:
-        boss-thread: 1
-        worker-thread: 8
-      monitor-enable: true
-      monitor-interval-seconds: 10
-      plugins:
-        - monitorPlugin
-        - bigKeyPlugin
-        - hotKeyPlugin
-      transpond:
-        type: local
-        local:
-          type: complex
-          json-file: resource-key-routing.json
-        redis-conf:
-          sharding-func: com.netease.nim.camellia.core.client.env.CRC16HashTagShardingFunc
-          preheat: true
-          close-idle-connection: true
-          check-idle-connection-threshold-seconds: 300
-          close-idle-connection-delay-seconds: 30
-
-  application-standalone-service-order.yml: |-
-    server:
-      port: 6380
-    spring:
-      application:
-        name: camellia-redis-proxy-order
-    camellia-redis-proxy:
-      console-port: 16379
-      password: camellia_admin_pass
-      netty:
-        boss-thread: 1
-        worker-thread: 4
-      monitor-enable: true
-      monitor-interval-seconds: 10
-      plugins:
-        - monitorPlugin
-        - bigKeyPlugin
-        - hotKeyPlugin
-      transpond:
-        type: local
-        local:
-          type: complex
-          json-file: resource-service-order.json
-        redis-conf:
-          sharding-func: com.netease.nim.camellia.core.client.env.CRC16HashTagShardingFunc
-          preheat: true
-          close-idle-connection: true
-          check-idle-connection-threshold-seconds: 300
-          close-idle-connection-delay-seconds: 30
-
-  application-standalone-service-payment.yml: |-
-    server:
-      port: 6380
-    spring:
-      application:
-        name: camellia-redis-proxy-payment
-    camellia-redis-proxy:
-      console-port: 16379
-      password: camellia_admin_pass
-      netty:
-        boss-thread: 1
-        worker-thread: 4
-      monitor-enable: true
-      monitor-interval-seconds: 10
-      plugins:
-        - monitorPlugin
-        - bigKeyPlugin
-        - hotKeyPlugin
-      transpond:
-        type: local
-        local:
-          type: complex
-          json-file: resource-service-payment.json
-        redis-conf:
-          sharding-func: com.netease.nim.camellia.core.client.env.CRC16HashTagShardingFunc
-          preheat: true
-          close-idle-connection: true
-          check-idle-connection-threshold-seconds: 300
-          close-idle-connection-delay-seconds: 30
-
-  application-standalone-service-search.yml: |-
-    server:
-      port: 6380
-    spring:
-      application:
-        name: camellia-redis-proxy-search
-    camellia-redis-proxy:
-      console-port: 16379
-      password: camellia_admin_pass
-      netty:
-        boss-thread: 1
-        worker-thread: 4
-      monitor-enable: true
-      monitor-interval-seconds: 10
-      plugins:
-        - monitorPlugin
-        - bigKeyPlugin
-        - hotKeyPlugin
-      transpond:
-        type: local
-        local:
-          type: complex
-          json-file: resource-service-search.json
-        redis-conf:
-          sharding-func: com.netease.nim.camellia.core.client.env.CRC16HashTagShardingFunc
-          preheat: true
-          close-idle-connection: true
-          check-idle-connection-threshold-seconds: 300
-          close-idle-connection-delay-seconds: 30
-
+  # ======================
+  # STANDALONE + SHARDING
+  # ======================
   camellia-redis-proxy-standalone-shared-auth.properties: |-
     port=6380
     application.name=camellia-redis-proxy-shared-auth
@@ -367,7 +176,7 @@ data:
     console.port=16379
     proxy.plugin.list=monitorPlugin,bigKeyPlugin,hotKeyPlugin
 
-    dynamic.conf.reload.interval.seconds=2
+    dynamic.conf.reload.interval.seconds=30
 
     route.conf.provider=multi_tenants_v1
     multi.tenant.route.default.bid=101
@@ -379,267 +188,124 @@ data:
     svcPaymentPwd.password.102.prod.route.conf={"type":"sharding","operation":{"bucketSize":3,"operationMap":{"0":{"read":"redis://@redis-pool-4:6379","type":"rw_separate","write":"redis://@redis-pool-4:6379"},"1":{"read":"redis://@redis-pool-5:6379","type":"rw_separate","write":"redis://@redis-pool-5:6379"},"2":{"read":"redis://@redis-pool-6:6379","type":"rw_separate","write":"redis://@redis-pool-6:6379"}}}}
     svcSearchPwd.password.103.prod.route.conf={"type":"sharding","operation":{"bucketSize":3,"operationMap":{"0":{"read":"redis://@redis-pool-7:6379","type":"rw_separate","write":"redis://@redis-pool-7:6379"},"1":{"read":"redis://@redis-pool-8:6379","type":"rw_separate","write":"redis://@redis-pool-8:6379"},"2":{"read":"redis://@redis-pool-9:6379","type":"rw_separate","write":"redis://@redis-pool-9:6379"}}}}
 
-  application-standalone-shared-auth.yml: |-
-    server:
-      port: 6380
-    spring:
-      application:
-        name: camellia-redis-proxy-standalone-shared-auth
-    camellia-redis-proxy:
-      console-port: 16379
-      netty:
-        transport-mode: auto
-      monitor-enable: true
-      monitor-interval-seconds: 10
-      plugins:
-        - monitorPlugin
-        - bigKeyPlugin
-        - hotKeyPlugin
-      dynamic-conf-reload-interval-seconds: 2
-      route-conf-provider: multi_tenants_v1
-      transpond:
-        type: local
-        local:
-          type: complex
-          json-file: resource-table.json
-      multi-tenant:
-        route:
-          default-bid: 101
-          default-bgroup: prod
-          conf-reload-interval-millis: 2000
-          conf-remove-enable: true
-      svcOrderPwd.password.101.prod.route.conf: '{"type":"sharding","operation":{"bucketSize":3,"operationMap":{"0":{"read":"redis://@redis-pool-1:6379","type":"rw_separate","write":"redis://@redis-pool-1:6379"},"1":{"read":"redis://@redis-pool-2:6379","type":"rw_separate","write":"redis://@redis-pool-2:6379"},"2":{"read":"redis://@redis-pool-3:6379","type":"rw_separate","write":"redis://@redis-pool-3:6379"}}}}'
-      svcPaymentPwd.password.102.prod.route.conf: '{"type":"sharding","operation":{"bucketSize":3,"operationMap":{"0":{"read":"redis://@redis-pool-4:6379","type":"rw_separate","write":"redis://@redis-pool-4:6379"},"1":{"read":"redis://@redis-pool-5:6379","type":"rw_separate","write":"redis://@redis-pool-5:6379"},"2":{"read":"redis://@redis-pool-6:6379","type":"rw_separate","write":"redis://@redis-pool-6:6379"}}}}'
-      svcSearchPwd.password.103.prod.route.conf: '{"type":"sharding","operation":{"bucketSize":3,"operationMap":{"0":{"read":"redis://@redis-pool-7:6379","type":"rw_separate","write":"redis://@redis-pool-7:6379"},"1":{"read":"redis://@redis-pool-8:6379","type":"rw_separate","write":"redis://@redis-pool-8:6379"},"2":{"read":"redis://@redis-pool-9:6379","type":"rw_separate","write":"redis://@redis-pool-9:6379"}}}}'
+  camellia-redis-proxy-standalone.properties: |-
+    port=6380
+    application.name=camellia-redis-proxy-standalone
+    proxy.mode=standalone
+    console.port=16379
+    password=camellia_admin_pass
+    netty.transport.mode=auto
 
-  application-cluster.yml: |-
-    server:
-      port: 6380
-    spring:
-      application:
-        name: camellia-redis-proxy-server
-    camellia-redis-proxy:
-      console-port: 16378
-      cport: 16380
-      cport-password: camellia_cport_pass
-      password: camellia_admin_pass
-      cluster-mode-enable: true
-      sentinel-mode-enable: false
-      monitor-enable: true
-      monitor-interval-seconds: 60
-      cluster-mode-provider-class-name: com.netease.nim.camellia.redis.proxy.cluster.provider.ConsensusProxyClusterModeProvider
-      netty:
-        boss-thread: 1
-        worker-thread: 8
-      plugins:
-        - monitorPlugin
-        - bigKeyPlugin
-        - hotKeyPlugin
-        - hotKeyCachePlugin
-      config:
-        "check.redis.resource.valid.not.active.threshold.seconds": 300
-        "proxy.cluster.mode.command.move.enable": false
-        "proxy.cluster.mode.command.move.always": false
-        "cluster.mode.consensus.leader.selector.class.name": "com.netease.nim.camellia.redis.proxy.cluster.provider.RedisConsensusLeaderSelector"
-        "redis.consensus.leader.selector.redis.url": "redis://@10.10.84.78:6379"
-        "redis.consensus.leader.selector.redis.key": "camellia:proxy:leader:main:v1"
-      transpond:
-        type: local
-        local:
-          type: complex
-          json-file: resource-sharding-singlewrite-multiread.json
-        redis-conf:
-          sharding-func: com.netease.nim.camellia.core.client.env.CRC16HashTagShardingFunc
-          redis-cluster-max-attempts: 5
-          close-idle-connection: true
-          check-idle-connection-threshold-seconds: 600
-          close-idle-connection-delay-seconds: 60
-          preheat: true
-          heartbeat-interval-seconds: 60
-          heartbeat-timeout-millis: 10000
-          connect-timeout-millis: 1000
-          fail-count-threshold: 5
-          fail-ban-millis: 5000
+    monitor.enable=true
+    monitor.interval.seconds=10
+    proxy.plugin.list=monitorPlugin,bigKeyPlugin,hotKeyPlugin,hotKeyCachePlugin
+    dynamic.conf.reload.interval.seconds=30
+    route.conf.file=resource-sharding-singlewrite-multiread.json
 
-  application-cluster-key-routing.yml: |-
-    server:
-      port: 6380
-    spring:
-      application:
-        name: camellia-redis-proxy-cluster-key-routing
-    camellia-redis-proxy:
-      console-port: 16378
-      password: camellia_admin_pass
-      netty:
-        boss-thread: 1
-        worker-thread: 8
-      monitor-enable: true
-      monitor-interval-seconds: 10
-      plugins:
-        - monitorPlugin
-        - bigKeyPlugin
-        - hotKeyPlugin
-      transpond:
-        type: local
-        local:
-          type: complex
-          json-file: resource-key-routing.json
-        redis-conf:
-          sharding-func: com.netease.nim.camellia.core.client.env.CRC16HashTagShardingFunc
-          preheat: true
-          close-idle-connection: true
-          check-idle-connection-threshold-seconds: 300
-          close-idle-connection-delay-seconds: 30
-      cport: 16380
-      cport-password: camellia_cport_pass
-      cluster-mode-enable: true
-      sentinel-mode-enable: false
-      cluster-mode-provider-class-name: com.netease.nim.camellia.redis.proxy.cluster.provider.ConsensusProxyClusterModeProvider
-      config:
-        check.redis.resource.valid.not.active.threshold.seconds: 300
-        proxy.cluster.mode.command.move.enable: false
-        proxy.cluster.mode.command.move.always: false
-        cluster.mode.consensus.leader.selector.class.name: com.netease.nim.camellia.redis.proxy.cluster.provider.RedisConsensusLeaderSelector
-        redis.consensus.leader.selector.redis.url: redis://@10.10.84.78:6379
-        redis.consensus.leader.selector.redis.key: camellia:proxy:leader:key-routing:v1
+    transpond.type=local
+    transpond.local.type=complex
+    transpond.local.json.file=resource-sharding-singlewrite-multiread.json
+    redis.conf.sharding.func=com.netease.nim.camellia.core.client.env.CRC16HashTagShardingFunc
+    redis.conf.preheat=true
+    redis.conf.close.idle.connection=true
+    redis.conf.check.idle.connection.threshold.seconds=300
+    redis.conf.close.idle.connection.delay.seconds=30
 
-  application-cluster-service-order.yml: |-
-    server:
-      port: 6380
-    spring:
-      application:
-        name: camellia-redis-proxy-cluster-order
-    camellia-redis-proxy:
-      console-port: 16378
-      password: camellia_admin_pass
-      netty:
-        boss-thread: 1
-        worker-thread: 4
-      monitor-enable: true
-      monitor-interval-seconds: 10
-      plugins:
-        - monitorPlugin
-        - bigKeyPlugin
-        - hotKeyPlugin
-      transpond:
-        type: local
-        local:
-          type: complex
-          json-file: resource-service-order.json
-        redis-conf:
-          sharding-func: com.netease.nim.camellia.core.client.env.CRC16HashTagShardingFunc
-          preheat: true
-          close-idle-connection: true
-          check-idle-connection-threshold-seconds: 300
-          close-idle-connection-delay-seconds: 30
-      cport: 16380
-      cport-password: camellia_cport_pass
-      cluster-mode-enable: true
-      sentinel-mode-enable: false
-      cluster-mode-provider-class-name: com.netease.nim.camellia.redis.proxy.cluster.provider.ConsensusProxyClusterModeProvider
-      config:
-        check.redis.resource.valid.not.active.threshold.seconds: 300
-        proxy.cluster.mode.command.move.enable: false
-        proxy.cluster.mode.command.move.always: false
-        cluster.mode.consensus.leader.selector.class.name: com.netease.nim.camellia.redis.proxy.cluster.provider.RedisConsensusLeaderSelector
-        redis.consensus.leader.selector.redis.url: redis://10.10.84.78:6379
-        redis.consensus.leader.selector.redis.key: camellia:proxy:leader:order:v1
+  # ======================
+  # CLUSTER - GENERIC
+  # ======================
+  camellia-redis-proxy-cluster.properties: |-
+    port=6380
+    application.name=camellia-redis-proxy-server
+    proxy.mode=cluster
+    proxy.cluster.mode.enable=true
+    cluster.mode.provider.class.name=com.netease.nim.camellia.redis.proxy.cluster.provider.ConsensusClusterModeProvider
+    proxy.cluster.mode.command.move.enable=false
+    proxy.cluster.mode.command.move.always=false
+    cluster.mode.consensus.leader.selector.class.name=com.netease.nim.camellia.redis.proxy.cluster.provider.RedisConsensusLeaderSelector
+    redis.consensus.leader.selector.redis.url=redis://@10.10.84.78:6379
+    redis.consensus.leader.selector.redis.key=camellia:proxy:leader:main:v1
 
-  application-cluster-service-payment.yml: |-
-    server:
-      port: 6380
-    spring:
-      application:
-        name: camellia-redis-proxy-cluster-payment
-    camellia-redis-proxy:
-      console-port: 16378
-      password: camellia_admin_pass
-      netty:
-        boss-thread: 1
-        worker-thread: 4
-      monitor-enable: true
-      monitor-interval-seconds: 10
-      plugins:
-        - monitorPlugin
-        - bigKeyPlugin
-        - hotKeyPlugin
-      transpond:
-        type: local
-        local:
-          type: complex
-          json-file: resource-service-payment.json
-        redis-conf:
-          sharding-func: com.netease.nim.camellia.core.client.env.CRC16HashTagShardingFunc
-          preheat: true
-          close-idle-connection: true
-          check-idle-connection-threshold-seconds: 300
-          close-idle-connection-delay-seconds: 30
-      cport: 16380
-      cport-password: camellia_cport_pass
-      cluster-mode-enable: true
-      sentinel-mode-enable: false
-      cluster-mode-provider-class-name: com.netease.nim.camellia.redis.proxy.cluster.provider.ConsensusProxyClusterModeProvider
-      config:
-        check.redis.resource.valid.not.active.threshold.seconds: 300
-        proxy.cluster.mode.command.move.enable: false
-        proxy.cluster.mode.command.move.always: false
-        cluster.mode.consensus.leader.selector.class.name: com.netease.nim.camellia.redis.proxy.cluster.provider.RedisConsensusLeaderSelector
-        redis.consensus.leader.selector.redis.url: redis://10.10.84.78:6379
-        redis.consensus.leader.selector.redis.key: camellia:proxy:leader:payment:v1
+    cport=16380
+    cport.password=camellia_cport_pass
+    console.port=16378
+    password=camellia_admin_pass
+    netty.transport.mode=auto
 
-  application-cluster-service-search.yml: |-
-    server:
-      port: 6380
-    spring:
-      application:
-        name: camellia-redis-proxy-cluster-search
-    camellia-redis-proxy:
-      console-port: 16378
-      password: camellia_admin_pass
-      netty:
-        boss-thread: 1
-        worker-thread: 4
-      monitor-enable: true
-      monitor-interval-seconds: 10
-      plugins:
-        - monitorPlugin
-        - bigKeyPlugin
-        - hotKeyPlugin
-      transpond:
-        type: local
-        local:
-          type: complex
-          json-file: resource-service-search.json
-        redis-conf:
-          sharding-func: com.netease.nim.camellia.core.client.env.CRC16HashTagShardingFunc
-          preheat: true
-          close-idle-connection: true
-          check-idle-connection-threshold-seconds: 300
-          close-idle-connection-delay-seconds: 30
-      cport: 16380
-      cport-password: camellia_cport_pass
-      cluster-mode-enable: true
-      sentinel-mode-enable: false
-      cluster-mode-provider-class-name: com.netease.nim.camellia.redis.proxy.cluster.provider.ConsensusProxyClusterModeProvider
-      config:
-        check.redis.resource.valid.not.active.threshold.seconds: 300
-        proxy.cluster.mode.command.move.enable: false
-        proxy.cluster.mode.command.move.always: false
-        cluster.mode.consensus.leader.selector.class.name: com.netease.nim.camellia.redis.proxy.cluster.provider.RedisConsensusLeaderSelector
-        redis.consensus.leader.selector.redis.url: redis://10.10.84.78:6379
-        redis.consensus.leader.selector.redis.key: camellia:proxy:leader:search:v1
+    monitor.enable=true
+    monitor.interval.seconds=60
+    proxy.plugin.list=monitorPlugin,bigKeyPlugin,hotKeyPlugin,hotKeyCachePlugin
 
+    # transpond local+sharding-singlewrite-multiread
+    transpond.type=local
+    transpond.local.type=complex
+    transpond.local.json.file=resource-sharding-singlewrite-multiread.json
+
+    redis.conf.sharding.func=com.netease.nim.camellia.core.client.env.CRC16HashTagShardingFunc
+    redis.conf.redis.cluster.max.attempts=5
+    redis.conf.close.idle.connection=true
+    redis.conf.check.idle.connection.threshold.seconds=600
+    redis.conf.close.idle.connection.delay.seconds=60
+    redis.conf.preheat=true
+    redis.conf.heartbeat.interval.seconds=60
+    redis.conf.heartbeat.timeout.millis=10000
+    redis.conf.connect.timeout.millis=1000
+    redis.conf.fail.count.threshold=5
+    redis.conf.fail.ban.millis=5000
+
+  # ======================
+  # CLUSTER - KEY ROUTING
+  # ======================
+  camellia-redis-proxy-cluster-key-routing.properties: |-
+    port=6380
+    application.name=camellia-redis-proxy-cluster-key-routing
+    password=camellia_admin_pass
+    proxy.mode=cluster
+    proxy.cluster.mode.enable=true
+    cluster.mode.provider.class.name=com.netease.nim.camellia.redis.proxy.cluster.provider.ConsensusClusterModeProvider
+    proxy.cluster.mode.command.move.enable=true
+    proxy.cluster.mode.command.move.always=true
+    cluster.mode.consensus.leader.selector.class.name=com.netease.nim.camellia.redis.proxy.cluster.provider.RedisConsensusLeaderSelector
+    redis.consensus.leader.selector.redis.url=redis://@camellia-cluster-key-routing-consensus-redis:6379
+    redis.consensus.leader.selector.redis.key=camellia:proxy:leader:key-routing:v1
+
+    cport=16380
+    cport.password=camellia_cport_pass
+    console.port=16378
+    netty.transport.mode=auto
+
+    monitor.enable=true
+    monitor.interval.seconds=10
+    proxy.plugin.list=monitorPlugin,bigKeyPlugin,hotKeyPlugin
+
+    dynamic.conf.reload.interval.seconds=2
+    route.conf.file=resource-key-routing.json
+
+    # transpond local + key-routing.json
+    transpond.type=local
+    transpond.local.type=complex
+    transpond.local.json.file=resource-key-routing.json
+    redis.conf.sharding.func=com.netease.nim.camellia.core.client.env.CRC16HashTagShardingFunc
+    redis.conf.preheat=true
+    redis.conf.close.idle.connection=true
+    redis.conf.check.idle.connection.threshold.seconds=300
+    redis.conf.close.idle.connection.delay.seconds=30
+
+  # ======================
+  # CLUSTER - SHARED AUTH + MULTI-TENANT
+  # ======================
   camellia-redis-proxy-cluster-shared-auth.properties: |-
     port=6380
     application.name=camellia-redis-proxy-cluster-shared-auth
     proxy.mode=cluster
     proxy.cluster.mode.enable=true
-    cluster.mode.provider.class.name=com.netease.nim.camellia.redis.proxy.cluster.provider.ConsensusProxyClusterModeProvider
-    proxy.cluster.mode.command.move.enable=false
-    proxy.cluster.mode.command.move.always=false
+    cluster.mode.provider.class.name=com.netease.nim.camellia.redis.proxy.cluster.provider.ConsensusClusterModeProvider
+    proxy.cluster.mode.command.move.enable=true
+    proxy.cluster.mode.command.move.always=true
     cluster.mode.consensus.leader.selector.class.name=com.netease.nim.camellia.redis.proxy.cluster.provider.RedisConsensusLeaderSelector
-    redis.consensus.leader.selector.redis.url=redis://@10.10.84.78:6379
+    redis.consensus.leader.selector.redis.url=redis://@camellia-cluster-shared-auth-consensus-redis:6379
     redis.consensus.leader.selector.redis.key=camellia:proxy:leader:shared-auth:v1
+
     cport=16380
     cport.password=camellia_cport_pass
     console.port=16378
@@ -661,60 +327,181 @@ data:
     svcPaymentPwd.password.102.prod.route.conf={"type":"sharding","operation":{"bucketSize":3,"operationMap":{"0":{"read":"redis://@redis-pool-4:6379","type":"rw_separate","write":"redis://@redis-pool-4:6379"},"1":{"read":"redis://@redis-pool-5:6379","type":"rw_separate","write":"redis://@redis-pool-5:6379"},"2":{"read":"redis://@redis-pool-6:6379","type":"rw_separate","write":"redis://@redis-pool-6:6379"}}}}
     svcSearchPwd.password.103.prod.route.conf={"type":"sharding","operation":{"bucketSize":3,"operationMap":{"0":{"read":"redis://@redis-pool-7:6379","type":"rw_separate","write":"redis://@redis-pool-7:6379"},"1":{"read":"redis://@redis-pool-8:6379","type":"rw_separate","write":"redis://@redis-pool-8:6379"},"2":{"read":"redis://@redis-pool-9:6379","type":"rw_separate","write":"redis://@redis-pool-9:6379"}}}}
 
-  application-cluster-shared-auth.yml: |-
-    server:
-      port: 6380
+  camellia-redis-proxy-cluster-service-order.properties: |-
+    port=6380
+    application.name=camellia-redis-proxy-cluster-order
+    proxy.mode=cluster
+    proxy.cluster.mode.enable=true
+    cluster.mode.provider.class.name=com.netease.nim.camellia.redis.proxy.cluster.provider.ConsensusClusterModeProvider
+    proxy.cluster.mode.command.move.enable=false
+    proxy.cluster.mode.command.move.always=false
+    cluster.mode.consensus.leader.selector.class.name=com.netease.nim.camellia.redis.proxy.cluster.provider.RedisConsensusLeaderSelector
+    redis.consensus.leader.selector.redis.url=redis://10.10.84.78:6379
+    redis.consensus.leader.selector.redis.key=camellia:proxy:leader:order:v1
+    cport=16380
+    cport.password=camellia_cport_pass
+    console.port=16378
+    password=camellia_admin_pass
+    netty.transport.mode=auto
+    monitor.enable=true
+    monitor.interval.seconds=10
+    proxy.plugin.list=monitorPlugin,bigKeyPlugin,hotKeyPlugin
+    dynamic.conf.reload.interval.seconds=30
+    route.conf.file=resource-service-order.json
+    transpond.type=local
+    transpond.local.type=complex
+    transpond.local.json.file=resource-service-order.json
+    redis.conf.sharding.func=com.netease.nim.camellia.core.client.env.CRC16HashTagShardingFunc
+    redis.conf.preheat=true
+    redis.conf.close.idle.connection=true
+    redis.conf.check.idle.connection.threshold.seconds=300
+    redis.conf.close.idle.connection.delay.seconds=30
 
-    spring:
-      application:
-        name: camellia-redis-proxy-cluster-shared-auth
+  camellia-redis-proxy-cluster-service-payment.properties: |-
+    port=6380
+    application.name=camellia-redis-proxy-cluster-payment
+    proxy.mode=cluster
+    proxy.cluster.mode.enable=true
+    cluster.mode.provider.class.name=com.netease.nim.camellia.redis.proxy.cluster.provider.ConsensusClusterModeProvider
+    proxy.cluster.mode.command.move.enable=false
+    proxy.cluster.mode.command.move.always=false
+    cluster.mode.consensus.leader.selector.class.name=com.netease.nim.camellia.redis.proxy.cluster.provider.RedisConsensusLeaderSelector
+    redis.consensus.leader.selector.redis.url=redis://10.10.84.78:6379
+    redis.consensus.leader.selector.redis.key=camellia:proxy:leader:payment:v1
+    cport=16380
+    cport.password=camellia_cport_pass
+    console.port=16378
+    password=camellia_admin_pass
+    netty.transport.mode=auto
+    monitor.enable=true
+    monitor.interval.seconds=10
+    proxy.plugin.list=monitorPlugin,bigKeyPlugin,hotKeyPlugin
+    dynamic.conf.reload.interval.seconds=30
+    route.conf.file=resource-service-payment.json
+    transpond.type=local
+    transpond.local.type=complex
+    transpond.local.json.file=resource-service-payment.json
+    redis.conf.sharding.func=com.netease.nim.camellia.core.client.env.CRC16HashTagShardingFunc
+    redis.conf.preheat=true
+    redis.conf.close.idle.connection=true
+    redis.conf.check.idle.connection.threshold.seconds=300
+    redis.conf.close.idle.connection.delay.seconds=30
 
-    camellia-redis-proxy:
-      console-port: 16378
-      cport: 16380
-      # password bảo vệ cport (cluster management / heartbeat)
-      cport-password: camellia_cport_pass
+  camellia-redis-proxy-cluster-service-search.properties: |-
+    port=6380
+    application.name=camellia-redis-proxy-cluster-search
+    proxy.mode=cluster
+    proxy.cluster.mode.enable=true
+    cluster.mode.provider.class.name=com.netease.nim.camellia.redis.proxy.cluster.provider.ConsensusClusterModeProvider
+    proxy.cluster.mode.command.move.enable=false
+    proxy.cluster.mode.command.move.always=false
+    cluster.mode.consensus.leader.selector.class.name=com.netease.nim.camellia.redis.proxy.cluster.provider.RedisConsensusLeaderSelector
+    redis.consensus.leader.selector.redis.url=redis://10.10.84.78:6379
+    redis.consensus.leader.selector.redis.key=camellia:proxy:leader:search:v1
+    cport=16380
+    cport.password=camellia_cport_pass
+    console.port=16378
+    password=camellia_admin_pass
+    netty.transport.mode=auto
+    monitor.enable=true
+    monitor.interval.seconds=10
+    proxy.plugin.list=monitorPlugin,bigKeyPlugin,hotKeyPlugin
+    dynamic.conf.reload.interval.seconds=30
+    route.conf.file=resource-service-search.json
+    transpond.type=local
+    transpond.local.type=complex
+    transpond.local.json.file=resource-service-search.json
+    redis.conf.sharding.func=com.netease.nim.camellia.core.client.env.CRC16HashTagShardingFunc
+    redis.conf.preheat=true
+    redis.conf.close.idle.connection=true
+    redis.conf.check.idle.connection.threshold.seconds=300
+    redis.conf.close.idle.connection.delay.seconds=30
 
-      cluster-mode-enable: true
-      sentinel-mode-enable: false
-      cluster-mode-provider-class-name: com.netease.nim.camellia.redis.proxy.cluster.provider.ConsensusProxyClusterModeProvider
+  camellia-redis-proxy-standalone-service-order.properties: |-
+    port=6380
+    application.name=camellia-redis-proxy-standalone-order
+    proxy.mode=standalone
+    console.port=16379
+    password=camellia_admin_pass
+    netty.transport.mode=auto
+    monitor.enable=true
+    monitor.interval.seconds=10
+    proxy.plugin.list=monitorPlugin,bigKeyPlugin,hotKeyPlugin
+    dynamic.conf.reload.interval.seconds=30
+    route.conf.file=resource-service-order.json
+    transpond.type=local
+    transpond.local.type=complex
+    transpond.local.json.file=resource-service-order.json
+    redis.conf.sharding.func=com.netease.nim.camellia.core.client.env.CRC16HashTagShardingFunc
+    redis.conf.preheat=true
+    redis.conf.close.idle.connection=true
+    redis.conf.check.idle.connection.threshold.seconds=300
+    redis.conf.close.idle.connection.delay.seconds=30
 
-      netty:
-        transport-mode: auto
+  camellia-redis-proxy-standalone-service-payment.properties: |-
+    port=6380
+    application.name=camellia-redis-proxy-standalone-payment
+    proxy.mode=standalone
+    console.port=16379
+    password=camellia_admin_pass
+    netty.transport.mode=auto
+    monitor.enable=true
+    monitor.interval.seconds=10
+    proxy.plugin.list=monitorPlugin,bigKeyPlugin,hotKeyPlugin
+    dynamic.conf.reload.interval.seconds=30
+    route.conf.file=resource-service-payment.json
+    transpond.type=local
+    transpond.local.type=complex
+    transpond.local.json.file=resource-service-payment.json
+    redis.conf.sharding.func=com.netease.nim.camellia.core.client.env.CRC16HashTagShardingFunc
+    redis.conf.preheat=true
+    redis.conf.close.idle.connection=true
+    redis.conf.check.idle.connection.threshold.seconds=300
+    redis.conf.close.idle.connection.delay.seconds=30
 
-      monitor-enable: true
-      monitor-interval-seconds: 10
+  camellia-redis-proxy-standalone-service-search.properties: |-
+    port=6380
+    application.name=camellia-redis-proxy-standalone-search
+    proxy.mode=standalone
+    console.port=16379
+    password=camellia_admin_pass
+    netty.transport.mode=auto
+    monitor.enable=true
+    monitor.interval.seconds=10
+    proxy.plugin.list=monitorPlugin,bigKeyPlugin,hotKeyPlugin
+    dynamic.conf.reload.interval.seconds=30
+    route.conf.file=resource-service-search.json
+    transpond.type=local
+    transpond.local.type=complex
+    transpond.local.json.file=resource-service-search.json
+    redis.conf.sharding.func=com.netease.nim.camellia.core.client.env.CRC16HashTagShardingFunc
+    redis.conf.preheat=true
+    redis.conf.close.idle.connection=true
+    redis.conf.check.idle.connection.threshold.seconds=300
+    redis.conf.close.idle.connection.delay.seconds=30
 
-      plugins:
-        - monitorPlugin
-        - bigKeyPlugin
-        - hotKeyPlugin
+  # ======================
+  # STANDALONE SIMPLE ROUTING (nếu cần thêm)
+  # ======================
+  camellia-redis-proxy-standalone-key-routing.properties: |-
+    port=6380
+    application.name=camellia-redis-proxy-key-routing
+    proxy.mode=standalone
+    console.port=16379
+    password=camellia_admin_pass
+    netty.transport.mode=auto
 
-      config:
-        "proxy.cluster.mode.command.move.enable": false
-        "proxy.cluster.mode.command.move.always": false
-        "cluster.mode.consensus.leader.selector.class.name": "com.netease.nim.camellia.redis.proxy.cluster.provider.RedisConsensusLeaderSelector"
-        "redis.consensus.leader.selector.redis.url": "redis://@10.10.84.78:6379"
-        "redis.consensus.leader.selector.redis.key": "camellia:proxy:leader:shared-auth:v1"
+    monitor.enable=true
+    monitor.interval.seconds=10
+    proxy.plugin.list=monitorPlugin,bigKeyPlugin,hotKeyPlugin
+    dynamic.conf.reload.interval.seconds=30
+    route.conf.file=resource-key-routing.json
 
-        # Dùng format 'key: value' bọc trong ngoặc kép để tránh bị YAML parser tách thành lồng nhau (nested map)
-        "svcOrderPwd.password.101.prod.route.conf": '{"type":"sharding","operation":{"bucketSize":3,"operationMap":{"0":{"read":"redis://@redis-pool-1:6379","type":"rw_separate","write":"redis://@redis-pool-1:6379"},"1":{"read":"redis://@redis-pool-2:6379","type":"rw_separate","write":"redis://@redis-pool-2:6379"},"2":{"read":"redis://@redis-pool-3:6379","type":"rw_separate","write":"redis://@redis-pool-3:6379"}}}}'
-        "svcPaymentPwd.password.102.prod.route.conf": '{"type":"sharding","operation":{"bucketSize":3,"operationMap":{"0":{"read":"redis://@redis-pool-4:6379","type":"rw_separate","write":"redis://@redis-pool-4:6379"},"1":{"read":"redis://@redis-pool-5:6379","type":"rw_separate","write":"redis://@redis-pool-5:6379"},"2":{"read":"redis://@redis-pool-6:6379","type":"rw_separate","write":"redis://@redis-pool-6:6379"}}}}'
-        "svcSearchPwd.password.103.prod.route.conf": '{"type":"sharding","operation":{"bucketSize":3,"operationMap":{"0":{"read":"redis://@redis-pool-7:6379","type":"rw_separate","write":"redis://@redis-pool-7:6379"},"1":{"read":"redis://@redis-pool-8:6379","type":"rw_separate","write":"redis://@redis-pool-8:6379"},"2":{"read":"redis://@redis-pool-9:6379","type":"rw_separate","write":"redis://@redis-pool-9:6379"}}}}'
-      dynamic-conf-reload-interval-seconds: 2
-      route-conf-provider: multi_tenants_v1
-
-      transpond:
-        type: local
-        local:
-          type: complex
-          json-file: resource-table.json
-        redis-conf:
-          sharding-func: com.netease.nim.camellia.core.client.env.CRC16HashTagShardingFunc
-
-      multi-tenant:
-        route:
-          default-bid: 101
-          default-bgroup: prod
-          conf-reload-interval-millis: 2000
-          conf-remove-enable: true
+    transpond.type=local
+    transpond.local.type=complex
+    transpond.local.json.file=resource-key-routing.json
+    redis.conf.sharding.func=com.netease.nim.camellia.core.client.env.CRC16HashTagShardingFunc
+    redis.conf.preheat=true
+    redis.conf.close.idle.connection=true
+    redis.conf.check.idle.connection.threshold.seconds=300
+    redis.conf.close.idle.connection.delay.seconds=30

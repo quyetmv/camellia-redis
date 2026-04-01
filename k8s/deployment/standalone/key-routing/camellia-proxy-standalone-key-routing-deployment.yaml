@@ -17,7 +17,7 @@ spec:
       enableServiceLinks: false
       containers:
       - name: container-camellia
-        image: 48n6e/camellia-redis-proxy:1.3.7-jdk-21-0.0.1
+        image: 48n6e/camellia-redis-proxy:1.4.0-jdk-21-0.0.1
         command:
         - java
         - -XX:+UseG1GC
@@ -50,7 +50,7 @@ spec:
         - -Xms128m
         - -Xmx1024m
         - -server
-        - org.springframework.boot.loader.JarLauncher
+        - org.springframework.boot.loader.launch.JarLauncher
         resources:
           requests:
             memory: 128Mi
@@ -65,10 +65,15 @@ spec:
         - containerPort: 16379
           name: console
           protocol: TCP
+        env:
+        - name: LOGGING_LEVEL_ROOT
+          value: INFO
+        - name: LOGGING_LEVEL_COM_NETEASE_NIM_CAMELLIA_REDIS_PROXY
+          value: INFO
         volumeMounts:
         - name: cm-db-camellia
-          mountPath: /opt/camellia-redis-proxy/BOOT-INF/classes/application.yml
-          subPath: application-standalone-key-routing.yml
+          mountPath: /opt/camellia-redis-proxy/BOOT-INF/classes/camellia-redis-proxy.properties
+          subPath: camellia-redis-proxy-standalone-key-routing.properties
         - name: cm-db-camellia
           mountPath: /opt/camellia-redis-proxy/BOOT-INF/classes/logback.xml
           subPath: logback.xml

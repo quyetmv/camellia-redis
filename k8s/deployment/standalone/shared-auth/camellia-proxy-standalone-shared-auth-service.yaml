@@ -18,10 +18,10 @@ spec:
   - name: redis
     port: 6380
     targetPort: 6380
-    nodePort: 30680
+    nodePort: 31680
   - name: console
     port: 16379
     targetPort: 16379
-    nodePort: 30679
+    nodePort: 31679
   selector:
     app: camellia-proxy-standalone-shared-auth
