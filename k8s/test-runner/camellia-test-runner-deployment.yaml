@@ -24,66 +24,60 @@ spec:
               value: "1"
             - name: TEST_SCENARIO
               value: both
+            - name: SHARED_AUTH_KEY_ROUTING_HOST_CLUSTER
+              value: svc-camellia-proxy-cluster-shared-auth-key-routing
+            - name: SHARED_AUTH_KEY_ROUTING_PORT_CLUSTER
+              value: "6380"
+            - name: SHARED_AUTH_KEY_ROUTING_HOST_STANDALONE
+              value: svc-camellia-proxy-standalone-shared-auth-key-routing
+            - name: SHARED_AUTH_KEY_ROUTING_PORT_STANDALONE
+              value: "6380"
             - name: KEY_ROUTING_HOST_CLUSTER
               value: svc-camellia-proxy-cluster-key-routing
-            - name: SHARED_AUTH_HOST_CLUSTER
-              value: svc-camellia-proxy-cluster-shared-auth
             - name: KEY_ROUTING_PORT_CLUSTER
-              value: "6380"
-            - name: SHARED_AUTH_PORT_CLUSTER
               value: "6380"
             - name: KEY_ROUTING_HOST_STANDALONE
               value: svc-camellia-proxy-standalone-key-routing
-            - name: SHARED_AUTH_HOST_STANDALONE
-              value: svc-camellia-proxy-standalone-shared-auth
             - name: KEY_ROUTING_PORT_STANDALONE
-              value: "6380"
-            - name: SHARED_AUTH_PORT_STANDALONE
               value: "6380"
             - name: ADMIN_PASSWORD
               value: camellia_admin_pass
             - name: ORDER_PASSWORD
-              value: svcOrderPwd
+              value: order-service
             - name: PAYMENT_PASSWORD
-              value: svcPaymentPwd
+              value: payment-service
             - name: SEARCH_PASSWORD
-              value: svcSearchPwd
-            - name: ORDER_SERVICE_PREFIX
-              value: svc:order
-            - name: PAYMENT_SERVICE_PREFIX
-              value: svc:payment
-            - name: SEARCH_SERVICE_PREFIX
-              value: svc:search
+              value: search-service
             - name: HOT_KEY_NAME
-              value: session:{hot-user}:profile
+              value: session:{service}:{hot-user}:profile
             - name: STRESS_CLIENTS
-              value: "24"
+              value: "200"
             - name: STRESS_REQUESTS_PER_CLIENT
-              value: "2000"
+              value: "10000"
             - name: SET_PERCENT
               value: "30"
             - name: GET_PERCENT
               value: "70"
             - name: HOT_KEY_PERCENT
-              value: "20"
+              value: "40"
             - name: HOT_KEY_COUNT
-              value: "8"
+              value: "4"
             - name: KEYSPACE
-              value: "50000"
+              value: "200000"
             - name: VALUE_SIZE
-              value: "128"
-            - name: REPORT_EVERY
-              value: "500"
+              value: "256"
+            - name: REPORT_INTERVAL_SECONDS
+              value: "5"
             - name: SCENARIO_DELAY_SECONDS
-              value: "3"
+              value: "0"
             - name: RUN_FOREVER
               value: "true"
             - name: RUN_INTERVAL_SECONDS
               value: "60"
           resources:
             requests:
-              cpu: 50m
-              memory: 64Mi
-            limits:
               cpu: 500m
-              memory: 256Mi
+              memory: 512Mi
+            limits:
+              cpu: "4"
+              memory: 4Gi

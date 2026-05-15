@@ -130,7 +130,6 @@ kubectl -n testing exec -it deploy/camellia-test-runner -- env | grep -E 'TEST_S
 Biến môi trường mới:
 
 - `ORDER_PASSWORD`, `PAYMENT_PASSWORD`, `SEARCH_PASSWORD`
-- `ORDER_SERVICE_PREFIX`, `PAYMENT_SERVICE_PREFIX`, `SEARCH_SERVICE_PREFIX`
 - `HOT_KEY_NAME`
 - `STRESS_CLIENTS`
 - `STRESS_REQUESTS_PER_CLIENT`
@@ -145,6 +144,8 @@ Biến môi trường mới:
 ## 10) Gợi ý cấu hình ổn định
 
 - `TEST_SCENARIO=both` để chạy tuần tự cả `cluster` và `standalone`.
+- `SHARED_AUTH_KEY_ROUTING_HOST_CLUSTER`/`SHARED_AUTH_KEY_ROUTING_PORT_CLUSTER` để test endpoint cluster mới.
+- `SHARED_AUTH_KEY_ROUTING_HOST_STANDALONE`/`SHARED_AUTH_KEY_ROUTING_PORT_STANDALONE` để test endpoint standalone mới.
 - `RUN_INTERVAL_SECONDS=60` (hoặc cao hơn khi cluster đang scale/rebalance).
 - Giữ một deployment test-runner, chỉ đổi scenario bằng env.
 

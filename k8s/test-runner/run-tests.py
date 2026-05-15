@@ -1,6 +1,5 @@
 import os
 import random
-import statistics
 import string
 import sys
 import threading
@@ -11,28 +10,27 @@ import redis
 from redis.exceptions import ResponseError
 
 
-TEST_SCENARIO = os.environ.get("TEST_SCENARIO", "cluster").lower()
+TEST_SCENARIO = os.environ.get("TEST_SCENARIO", "both").lower()
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "camellia_admin_pass")
 RUN_INTERVAL_SECONDS = int(os.environ.get("RUN_INTERVAL_SECONDS", "60"))
 RUN_FOREVER = os.environ.get("RUN_FOREVER", "true").lower() == "true"
 
-STRESS_CLIENTS = int(os.environ.get("STRESS_CLIENTS", "24"))
-STRESS_REQUESTS_PER_CLIENT = int(os.environ.get("STRESS_REQUESTS_PER_CLIENT", "2000"))
+STRESS_CLIENTS = int(os.environ.get("STRESS_CLIENTS", "200"))
+STRESS_REQUESTS_PER_CLIENT = int(os.environ.get("STRESS_REQUESTS_PER_CLIENT", "10000"))
 SET_PERCENT = int(os.environ.get("SET_PERCENT", "30"))
 GET_PERCENT = int(os.environ.get("GET_PERCENT", "70"))
-HOT_KEY_PERCENT = int(os.environ.get("HOT_KEY_PERCENT", "20"))
-HOT_KEY_COUNT = int(os.environ.get("HOT_KEY_COUNT", "8"))
-KEYSPACE = int(os.environ.get("KEYSPACE", "50000"))
-VALUE_SIZE = int(os.environ.get("VALUE_SIZE", "128"))
-REPORT_EVERY = int(os.environ.get("REPORT_EVERY", "500"))
-SCENARIO_DELAY_SECONDS = int(os.environ.get("SCENARIO_DELAY_SECONDS", "3"))
+HOT_KEY_PERCENT = int(os.environ.get("HOT_KEY_PERCENT", "40"))
+HOT_KEY_COUNT = int(os.environ.get("HOT_KEY_COUNT", "4"))
+HOT_KEY_NAME = os.environ.get("HOT_KEY_NAME", "session:{service}:{hot-user}:profile")
+KEYSPACE = int(os.environ.get("KEYSPACE", "200000"))
+VALUE_SIZE = int(os.environ.get("VALUE_SIZE", "256"))
+REPORT_EVERY = int(os.environ.get("REPORT_EVERY", "2000"))
+REPORT_INTERVAL_SECONDS = int(os.environ.get("REPORT_INTERVAL_SECONDS", "5"))
+SCENARIO_DELAY_SECONDS = int(os.environ.get("SCENARIO_DELAY_SECONDS", "0"))
 
-ORDER_SERVICE_PREFIX = os.environ.get("ORDER_SERVICE_PREFIX", "svc:order")
-PAYMENT_SERVICE_PREFIX = os.environ.get("PAYMENT_SERVICE_PREFIX", "svc:payment")
-SEARCH_SERVICE_PREFIX = os.environ.get("SEARCH_SERVICE_PREFIX", "svc:search")
-ORDER_PASSWORD = os.environ.get("ORDER_PASSWORD", "svcOrderPwd")
-PAYMENT_PASSWORD = os.environ.get("PAYMENT_PASSWORD", "svcPaymentPwd")
-SEARCH_PASSWORD = os.environ.get("SEARCH_PASSWORD", "svcSearchPwd")
+ORDER_PASSWORD = os.environ.get("ORDER_PASSWORD", "order-service")
+PAYMENT_PASSWORD = os.environ.get("PAYMENT_PASSWORD", "payment-service")
+SEARCH_PASSWORD = os.environ.get("SEARCH_PASSWORD", "search-service")
 
 REDIS_CLIENT_KWARGS = {
     "decode_responses": True,
@@ -44,7 +42,6 @@ REDIS_CLIENT_KWARGS = {
 @dataclass(frozen=True)
 class ServiceTarget:
     name: str
-    prefix: str
     password: str
 
 
@@ -56,14 +53,21 @@ class ThreadStats:
     get_ops: int = 0
     bytes_written: int = 0
     bytes_read: int = 0
-    latencies_ms: list[float] = field(default_factory=list)
+    latency_count: int = 0
+    latency_total_ms: float = 0.0
+    latency_max_ms: float = 0.0
+    latency_buckets: list[int] = field(default_factory=lambda: [0] * len(LATENCY_BUCKETS_MS))
 
 
 SERVICES = [
-    ServiceTarget("order", ORDER_SERVICE_PREFIX, ORDER_PASSWORD),
-    ServiceTarget("payment", PAYMENT_SERVICE_PREFIX, PAYMENT_PASSWORD),
-    ServiceTarget("search", SEARCH_SERVICE_PREFIX, SEARCH_PASSWORD),
+    ServiceTarget("order", ORDER_PASSWORD),
+    ServiceTarget("payment", PAYMENT_PASSWORD),
+    ServiceTarget("search", SEARCH_PASSWORD),
 ]
+
+LATENCY_BUCKETS_MS = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000]
+KEY_COUNTERS = {service.name: 0 for service in SERVICES}
+KEY_COUNTER_LOCK = threading.Lock()
 
 
 def _parse_moved(error_text: str) -> tuple[str, int] | None:
@@ -122,19 +126,26 @@ def get_scenarios():
     mapping = {
         "cluster": {
             "name": "cluster",
-            "client_mode": "cluster",
+            "shared_auth_host": os.environ.get(
+                "SHARED_AUTH_KEY_ROUTING_HOST_CLUSTER",
+                "svc-camellia-proxy-cluster-shared-auth-key-routing",
+            ),
+            "shared_auth_port": int(os.environ.get("SHARED_AUTH_KEY_ROUTING_PORT_CLUSTER", "6380")),
             "key_routing_host": os.environ.get("KEY_ROUTING_HOST_CLUSTER", "svc-camellia-proxy-cluster-key-routing"),
-            "shared_auth_host": os.environ.get("SHARED_AUTH_HOST_CLUSTER", "svc-camellia-proxy-cluster-shared-auth"),
             "key_routing_port": int(os.environ.get("KEY_ROUTING_PORT_CLUSTER", "6380")),
-            "shared_auth_port": int(os.environ.get("SHARED_AUTH_PORT_CLUSTER", "6380")),
         },
         "standalone": {
             "name": "standalone",
-            "client_mode": "standalone",
-            "key_routing_host": os.environ.get("KEY_ROUTING_HOST_STANDALONE", "svc-camellia-proxy-standalone-key-routing"),
-            "shared_auth_host": os.environ.get("SHARED_AUTH_HOST_STANDALONE", "svc-camellia-proxy-standalone-shared-auth"),
+            "shared_auth_host": os.environ.get(
+                "SHARED_AUTH_KEY_ROUTING_HOST_STANDALONE",
+                "svc-camellia-proxy-standalone-shared-auth-key-routing",
+            ),
+            "shared_auth_port": int(os.environ.get("SHARED_AUTH_KEY_ROUTING_PORT_STANDALONE", "6380")),
+            "key_routing_host": os.environ.get(
+                "KEY_ROUTING_HOST_STANDALONE",
+                "svc-camellia-proxy-standalone-key-routing",
+            ),
             "key_routing_port": int(os.environ.get("KEY_ROUTING_PORT_STANDALONE", "6380")),
-            "shared_auth_port": int(os.environ.get("SHARED_AUTH_PORT_STANDALONE", "6380")),
         },
     }
     if TEST_SCENARIO == "both":
@@ -161,6 +172,8 @@ def validate_settings():
         raise ValueError("SET_PERCENT + GET_PERCENT must equal 100")
     if HOT_KEY_PERCENT > 100:
         raise ValueError("HOT_KEY_PERCENT must be <= 100")
+    if "{service}" not in HOT_KEY_NAME:
+        raise ValueError("HOT_KEY_NAME must contain '{service}' placeholder")
 
 
 def build_random_value(size: int) -> str:
@@ -168,65 +181,96 @@ def build_random_value(size: int) -> str:
     return "".join(random.choices(alphabet, k=size))
 
 
-def percentile(values: list[float], q: float) -> float:
-    if not values:
+def record_latency(stats: ThreadStats, latency_ms: float):
+    stats.latency_count += 1
+    stats.latency_total_ms += latency_ms
+    if latency_ms > stats.latency_max_ms:
+        stats.latency_max_ms = latency_ms
+    for index, upper_bound in enumerate(LATENCY_BUCKETS_MS):
+        if latency_ms <= upper_bound:
+            stats.latency_buckets[index] += 1
+            return
+    stats.latency_buckets[-1] += 1
+
+
+def percentile_from_buckets(bucket_counts: list[int], q: float) -> float:
+    total = sum(bucket_counts)
+    if total <= 0:
         return 0.0
-    ordered = sorted(values)
-    index = min(len(ordered) - 1, max(0, int((len(ordered) - 1) * q)))
-    return ordered[index]
+    target = max(1, int(total * q))
+    current = 0
+    for upper_bound, count in zip(LATENCY_BUCKETS_MS, bucket_counts):
+        current += count
+        if current >= target:
+            return float(upper_bound)
+    return float(LATENCY_BUCKETS_MS[-1])
 
 
 def build_key(service: ServiceTarget, worker_id: int) -> str:
-    if random.randint(1, 100) <= HOT_KEY_PERCENT:
-        slot = random.randint(1, HOT_KEY_COUNT)
-        hot_name = HOT_KEY_NAME.replace("{service}", service.name)
-        return f"{service.prefix}:{hot_name}:{slot}"
-    slot = random.randint(1, KEYSPACE)
-    return f"{service.prefix}:worker:{worker_id}:key:{slot}"
+    with KEY_COUNTER_LOCK:
+        KEY_COUNTERS[service.name] += 1
+        sequence = KEY_COUNTERS[service.name]
+    return f"{service.name}:key:{sequence}"
 
 
 def preflight_checks(suite: dict) -> tuple[bool, list[str]]:
     messages = []
+
     try:
         admin = ProxyClient(suite["key_routing_host"], suite["key_routing_port"], ADMIN_PASSWORD)
-        key = f"k8s:runner:preflight:{suite['name']}:{int(time.time())}"
+        key = f"k8s:runner:admin:preflight:{suite['name']}:{int(time.time())}"
         admin.set(key, "ok")
         value = admin.get(key)
         admin.delete(key)
         if value != "ok":
             return False, [f"admin preflight mismatch value={value}"]
-        messages.append("admin route ok")
+        messages.append("admin endpoint ok")
     except Exception as exc:
         return False, [f"admin preflight error: {exc}"]
 
     try:
-        suffix = f"preflight:{int(time.time())}"
+        suffix = f"tenant-preflight:{int(time.time())}"
         values = {}
         for service in SERVICES:
             client = ProxyClient(suite["shared_auth_host"], suite["shared_auth_port"], service.password)
-            key = f"{service.prefix}:{suffix}"
+            key = f"{service.name}:{suffix}"
             payload = f"{service.name}-ok"
             client.set(key, payload)
             values[service.name] = client.get(key)
             client.delete(key)
         if values != {"order": "order-ok", "payment": "payment-ok", "search": "search-ok"}:
-            return False, [f"shared-auth preflight mismatch values={values}"]
-        messages.append("shared-auth route ok")
+            return False, [f"tenant preflight mismatch values={values}"]
+        messages.append("tenant auth route ok")
     except Exception as exc:
-        return False, [f"shared-auth preflight error: {exc}"]
+        return False, [f"tenant preflight error: {exc}"]
 
     try:
-        cluster_keys = [f"k8s:runner:{{tenant}}:{index}" for index in range(1, 4)]
-        cluster_client = ProxyClient(suite["key_routing_host"], suite["key_routing_port"], ADMIN_PASSWORD)
-        for index, key in enumerate(cluster_keys, start=1):
-            cluster_client.set(key, f"v{index}")
-        actual = cluster_client.mget(cluster_keys)
-        cluster_client.delete(*cluster_keys)
-        if actual != ["v1", "v2", "v3"]:
-            return False, [f"multi-key preflight mismatch actual={actual}"]
-        messages.append("multi-key route ok")
+        shared_key = f"isolation:{int(time.time())}"
+        order_client = ProxyClient(suite["shared_auth_host"], suite["shared_auth_port"], ORDER_PASSWORD)
+        payment_client = ProxyClient(suite["shared_auth_host"], suite["shared_auth_port"], PAYMENT_PASSWORD)
+        order_client.set(shared_key, "order-owned")
+        order_value = order_client.get(shared_key)
+        payment_value = payment_client.get(shared_key)
+        order_client.delete(shared_key)
+        if order_value != "order-owned" or payment_value is not None:
+            return False, [f"tenant isolation mismatch order={order_value} payment={payment_value}"]
+        messages.append("tenant isolation ok")
     except Exception as exc:
-        return False, [f"multi-key preflight error: {exc}"]
+        return False, [f"tenant isolation error: {exc}"]
+
+    try:
+        for service in SERVICES:
+            client = ProxyClient(suite["shared_auth_host"], suite["shared_auth_port"], service.password)
+            keys = [f"route:{{{service.name}}}:{i}" for i in range(1, 4)]
+            for index, key in enumerate(keys, start=1):
+                client.set(key, f"v{index}")
+            actual = client.mget(keys)
+            client.delete(*keys)
+            if actual != ["v1", "v2", "v3"]:
+                return False, [f"key routing mismatch service={service.name} actual={actual}"]
+        messages.append("key routing with hash-tag ok")
+    except Exception as exc:
+        return False, [f"key routing preflight error: {exc}"]
 
     return True, messages
 
@@ -253,17 +297,17 @@ def worker(suite: dict, service: ServiceTarget, worker_id: int, stats: ThreadSta
         except Exception:
             stats.failures += 1
         finally:
-            stats.latencies_ms.append((time.perf_counter() - started) * 1000)
-
-        if REPORT_EVERY > 0 and (index + 1) % REPORT_EVERY == 0:
-            print(
-                f"[progress] scenario={suite['name']} service={service.name} "
-                f"worker={worker_id} completed={index + 1}/{STRESS_REQUESTS_PER_CLIENT}"
-            )
+            record_latency(stats, (time.perf_counter() - started) * 1000)
 
 
 def aggregate(thread_stats: list[ThreadStats]) -> dict:
-    latencies = [lat for stat in thread_stats for lat in stat.latencies_ms]
+    latency_count = sum(stat.latency_count for stat in thread_stats)
+    latency_total_ms = sum(stat.latency_total_ms for stat in thread_stats)
+    latency_max_ms = max((stat.latency_max_ms for stat in thread_stats), default=0.0)
+    latency_buckets = [0] * len(LATENCY_BUCKETS_MS)
+    for stat in thread_stats:
+        for index, value in enumerate(stat.latency_buckets):
+            latency_buckets[index] += value
     return {
         "completed": sum(stat.completed for stat in thread_stats),
         "failures": sum(stat.failures for stat in thread_stats),
@@ -271,8 +315,23 @@ def aggregate(thread_stats: list[ThreadStats]) -> dict:
         "get_ops": sum(stat.get_ops for stat in thread_stats),
         "bytes_written": sum(stat.bytes_written for stat in thread_stats),
         "bytes_read": sum(stat.bytes_read for stat in thread_stats),
-        "latencies": latencies,
+        "latency_count": latency_count,
+        "latency_total_ms": latency_total_ms,
+        "latency_max_ms": latency_max_ms,
+        "latency_buckets": latency_buckets,
     }
+
+
+def progress_reporter(suite: dict, thread_stats: list[ThreadStats], started: float, stop_event: threading.Event):
+    total_expected = STRESS_CLIENTS * STRESS_REQUESTS_PER_CLIENT
+    while not stop_event.wait(REPORT_INTERVAL_SECONDS):
+        totals = aggregate(thread_stats)
+        elapsed = max(time.perf_counter() - started, 0.001)
+        throughput = totals["completed"] / elapsed
+        print(
+            f"[PROGRESS] scenario={suite['name']} completed={totals['completed']}/{total_expected} "
+            f"failures={totals['failures']} throughput_rps={throughput:.2f}"
+        )
 
 
 def run_stress(suite: dict) -> tuple[bool, list[str]]:
@@ -281,12 +340,21 @@ def run_stress(suite: dict) -> tuple[bool, list[str]]:
     barrier = threading.Barrier(STRESS_CLIENTS)
 
     print(
-        f"[INFO] stress scenario={suite['name']} mode={suite['client_mode']} "
+        f"[INFO] stress scenario={suite['name']} profile=shared-auth-key-routing "
         f"clients={STRESS_CLIENTS} requests_per_client={STRESS_REQUESTS_PER_CLIENT} "
         f"ratio=set:{SET_PERCENT}% get:{GET_PERCENT}% hot_key={HOT_KEY_PERCENT}%/{HOT_KEY_COUNT}"
     )
 
     started = time.perf_counter()
+    stop_event = threading.Event()
+    reporter = None
+    if REPORT_INTERVAL_SECONDS > 0:
+        reporter = threading.Thread(
+            target=progress_reporter,
+            args=(suite, thread_stats, started, stop_event),
+            daemon=True,
+        )
+        reporter.start()
     for worker_index in range(STRESS_CLIENTS):
         service = SERVICES[worker_index % len(SERVICES)]
         stats = ThreadStats()
@@ -301,13 +369,16 @@ def run_stress(suite: dict) -> tuple[bool, list[str]]:
 
     for thread in threads:
         thread.join()
+    stop_event.set()
+    if reporter is not None:
+        reporter.join(timeout=1)
     elapsed = time.perf_counter() - started
 
     totals = aggregate(thread_stats)
     throughput = totals["completed"] / elapsed if elapsed > 0 else 0.0
-    avg_latency = statistics.fmean(totals["latencies"]) if totals["latencies"] else 0.0
-    p95 = percentile(totals["latencies"], 0.95)
-    p99 = percentile(totals["latencies"], 0.99)
+    avg_latency = totals["latency_total_ms"] / totals["latency_count"] if totals["latency_count"] else 0.0
+    p95 = percentile_from_buckets(totals["latency_buckets"], 0.95)
+    p99 = percentile_from_buckets(totals["latency_buckets"], 0.99)
 
     summary = [
         f"completed={totals['completed']}",
@@ -319,6 +390,7 @@ def run_stress(suite: dict) -> tuple[bool, list[str]]:
         f"latency_avg_ms={avg_latency:.2f}",
         f"latency_p95_ms={p95:.2f}",
         f"latency_p99_ms={p99:.2f}",
+        f"latency_max_ms={totals['latency_max_ms']:.2f}",
         f"bytes_written={totals['bytes_written']}",
         f"bytes_read={totals['bytes_read']}",
     ]
@@ -332,9 +404,9 @@ def run_stress(suite: dict) -> tuple[bool, list[str]]:
 def run_suite(suite: dict) -> bool:
     print("=== Camellia K8s stress-runner ===")
     print(
-        f"scenario={suite['name']} mode={suite['client_mode']} "
-        f"keyRouting={suite['key_routing_host']}:{suite['key_routing_port']} "
-        f"sharedAuth={suite['shared_auth_host']}:{suite['shared_auth_port']}"
+        f"scenario={suite['name']} profile=shared-auth-key-routing "
+        f"sharedAuth={suite['shared_auth_host']}:{suite['shared_auth_port']} "
+        f"keyRouting={suite['key_routing_host']}:{suite['key_routing_port']}"
     )
 
     ok, messages = preflight_checks(suite)
@@ -356,13 +428,22 @@ def run_suite(suite: dict) -> bool:
 def run_once() -> int:
     validate_settings()
     scenarios = get_scenarios()
+    scenario_names = ",".join(suite["name"] for suite in scenarios)
+    print(
+        f"[RUN] scenarios={scenario_names} profile=shared-auth-key-routing clients={STRESS_CLIENTS} "
+        f"req_per_client={STRESS_REQUESTS_PER_CLIENT} interval={RUN_INTERVAL_SECONDS}s"
+    )
     overall = True
+    results = {}
     for index, suite in enumerate(scenarios):
-        if not run_suite(suite):
+        ok = run_suite(suite)
+        results[suite["name"]] = "PASS" if ok else "FAIL"
+        if not ok:
             overall = False
         if index < len(scenarios) - 1 and SCENARIO_DELAY_SECONDS > 0:
             print(f"[INFO] sleeping {SCENARIO_DELAY_SECONDS}s before next scenario")
             time.sleep(SCENARIO_DELAY_SECONDS)
+    print("[RUN] summary " + " ".join(f"{name}={status}" for name, status in results.items()))
     return 0 if overall else 1
 
 
@@ -374,6 +455,8 @@ def main():
         code = run_once()
         if code != 0:
             print(f"[WARN] One or more checks failed. Next retry in {RUN_INTERVAL_SECONDS}s.")
+        else:
+            print(f"[INFO] All scenarios passed. Next retry in {RUN_INTERVAL_SECONDS}s.")
         time.sleep(RUN_INTERVAL_SECONDS)
 
 

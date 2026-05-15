@@ -9,7 +9,7 @@ data:
 
     spring:
       datasource:
-        url: jdbc:mysql://camellia-dashboard-mysql:3306/camellia?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true
+        url: jdbc:mysql://camellia-dashboard-mysql.testing.svc.cluster.local:3306/camellia?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true
         username: root
         password: camellia
         driver-class-name: com.mysql.cj.jdbc.Driver
@@ -39,7 +39,7 @@ data:
       type: LOCAL
       local:
         type: SIMPLE
-        resource: redis://@camellia-dashboard-redis:6379
+        resource: redis://@camellia-dashboard-redis.testing.svc.cluster.local:6379
 
     camellia-dashboard:
       local-cache-expire-seconds: 5

@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: camellia-cluster-shared-auth-key-routing-consensus-redis
+  labels:
+    app: camellia-cluster-shared-auth-key-routing-consensus-redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: camellia-cluster-shared-auth-key-routing-consensus-redis
+  template:
+    metadata:
+      labels:
+        app: camellia-cluster-shared-auth-key-routing-consensus-redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7.2-alpine
+        args:
+        - redis-server
+        - --appendonly
+        - "yes"
+        resources:
+          requests:
+            memory: 64Mi
+            cpu: 100m
+          limits:
+            memory: 256Mi
+            cpu: 500m
+        ports:
+        - containerPort: 6379
+          name: redis
+          protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: camellia-cluster-shared-auth-key-routing-consensus-redis
+spec:
+  ports:
+  - name: redis
+    port: 6379
+    targetPort: 6379
+  selector:
+    app: camellia-cluster-shared-auth-key-routing-consensus-redis

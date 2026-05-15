@@ -95,6 +95,45 @@ data:
       }
     }
 
+  resource-table-standalone-shared-auth-key-routing.json: |-
+    {
+      "type": "sharding",
+      "operation": {
+        "bucketSize": 2,
+        "operationMap": {
+          "0": {
+            "read": "redis-sentinel://@10.10.86.142:26379,10.10.86.12:26379,10.10.86.121:26379/rs01?password=al892nsmbakVE0LUDXaCOvr5ds",
+            "type": "rw_separate",
+            "write": "redis-sentinel://@10.10.86.142:26379,10.10.86.12:26379,10.10.86.121:26379/rs01?password=al892nsmbakVE0LUDXaCOvr5ds"
+          },
+          "1": {
+            "read": "redis-sentinel://@10.10.86.100:26379,10.10.87.246:26379,10.10.86.142:26379/rs02?password=al892nsmbakVE0aCOvr5ds",
+            "type": "rw_separate",
+            "write": "redis-sentinel://@10.10.86.100:26379,10.10.87.246:26379,10.10.86.142:26379/rs02?password=al892nsmbakVE0aCOvr5ds"
+          }
+        }
+      }
+    }
+
+  resource-table-cluster-shared-auth-key-routing.json: |-
+    {
+      "type": "sharding",
+      "operation": {
+        "bucketSize": 9,
+        "operationMap": {
+          "0": { "read": "redis://@redis-pool-1:6379", "type": "rw_separate", "write": "redis://@redis-pool-1:6379" },
+          "1": { "read": "redis://@redis-pool-2:6379", "type": "rw_separate", "write": "redis://@redis-pool-2:6379" },
+          "2": { "read": "redis://@redis-pool-3:6379", "type": "rw_separate", "write": "redis://@redis-pool-3:6379" },
+          "3": { "read": "redis://@redis-pool-4:6379", "type": "rw_separate", "write": "redis://@redis-pool-4:6379" },
+          "4": { "read": "redis://@redis-pool-5:6379", "type": "rw_separate", "write": "redis://@redis-pool-5:6379" },
+          "5": { "read": "redis://@redis-pool-6:6379", "type": "rw_separate", "write": "redis://@redis-pool-6:6379" },
+          "6": { "read": "redis://@redis-pool-7:6379", "type": "rw_separate", "write": "redis://@redis-pool-7:6379" },
+          "7": { "read": "redis://@redis-pool-8:6379", "type": "rw_separate", "write": "redis://@redis-pool-8:6379" },
+          "8": { "read": "redis://@redis-pool-9:6379", "type": "rw_separate", "write": "redis://@redis-pool-9:6379" }
+        }
+      }
+    }
+
   resource-service-order.json: |-
     {
       "type": "simple",
@@ -184,10 +223,43 @@ data:
     multi.tenant.route.conf.reload.interval.millis=2000
     multi.tenant.route.conf.remove.enable=true
 
-    svcOrderPwd.password.101.prod.route.conf={"type":"sharding","operation":{"bucketSize":3,"operationMap":{"0":{"read":"redis://@redis-pool-1:6379","type":"rw_separate","write":"redis://@redis-pool-1:6379"},"1":{"read":"redis://@redis-pool-2:6379","type":"rw_separate","write":"redis://@redis-pool-2:6379"},"2":{"read":"redis://@redis-pool-3:6379","type":"rw_separate","write":"redis://@redis-pool-3:6379"}}}}
-    svcPaymentPwd.password.102.prod.route.conf={"type":"sharding","operation":{"bucketSize":3,"operationMap":{"0":{"read":"redis://@redis-pool-4:6379","type":"rw_separate","write":"redis://@redis-pool-4:6379"},"1":{"read":"redis://@redis-pool-5:6379","type":"rw_separate","write":"redis://@redis-pool-5:6379"},"2":{"read":"redis://@redis-pool-6:6379","type":"rw_separate","write":"redis://@redis-pool-6:6379"}}}}
-    svcSearchPwd.password.103.prod.route.conf={"type":"sharding","operation":{"bucketSize":3,"operationMap":{"0":{"read":"redis://@redis-pool-7:6379","type":"rw_separate","write":"redis://@redis-pool-7:6379"},"1":{"read":"redis://@redis-pool-8:6379","type":"rw_separate","write":"redis://@redis-pool-8:6379"},"2":{"read":"redis://@redis-pool-9:6379","type":"rw_separate","write":"redis://@redis-pool-9:6379"}}}}
+    order-service.password.101.prod.route.conf={"type":"sharding","operation":{"bucketSize":3,"operationMap":{"0":{"read":"redis://@redis-pool-1:6379","type":"rw_separate","write":"redis://@redis-pool-1:6379"},"1":{"read":"redis://@redis-pool-2:6379","type":"rw_separate","write":"redis://@redis-pool-2:6379"},"2":{"read":"redis://@redis-pool-3:6379","type":"rw_separate","write":"redis://@redis-pool-3:6379"}}}}
+    payment-service.password.102.prod.route.conf={"type":"sharding","operation":{"bucketSize":3,"operationMap":{"0":{"read":"redis://@redis-pool-4:6379","type":"rw_separate","write":"redis://@redis-pool-4:6379"},"1":{"read":"redis://@redis-pool-5:6379","type":"rw_separate","write":"redis://@redis-pool-5:6379"},"2":{"read":"redis://@redis-pool-6:6379","type":"rw_separate","write":"redis://@redis-pool-6:6379"}}}}
+    search-service.password.103.prod.route.conf={"type":"sharding","operation":{"bucketSize":3,"operationMap":{"0":{"read":"redis://@redis-pool-7:6379","type":"rw_separate","write":"redis://@redis-pool-7:6379"},"1":{"read":"redis://@redis-pool-8:6379","type":"rw_separate","write":"redis://@redis-pool-8:6379"},"2":{"read":"redis://@redis-pool-9:6379","type":"rw_separate","write":"redis://@redis-pool-9:6379"}}}}
 
+  # ======================
+  # STANDALONE - SHARED AUTH + KEY ROUTING
+  # mỗi service auth bằng password riêng; key routing theo hash/tag trong từng tenant route
+  # ======================
+  camellia-redis-proxy-standalone-shared-auth-key-routing.properties: |-
+    port=6380
+    application.name=camellia-redis-proxy-standalone-shared-auth-key-routing
+    proxy.mode=standalone
+    netty.transport.mode=auto
+
+    monitor.enable=true
+    monitor.interval.seconds=10
+    console.port=16379
+    proxy.plugin.list=monitorPlugin,bigKeyPlugin,hotKeyPlugin
+
+    dynamic.conf.reload.interval.seconds=30
+    redis.conf.sharding.func=com.netease.nim.camellia.core.client.env.CRC16HashTagShardingFunc
+    redis.conf.preheat=true
+    redis.conf.close.idle.connection=true
+    redis.conf.check.idle.connection.threshold.seconds=300
+    redis.conf.close.idle.connection.delay.seconds=30
+    route.conf.provider=multi_tenants_v1
+    multi.tenant.route.default.bid=100
+    multi.tenant.route.default.bgroup=default
+    multi.tenant.route.conf.reload.interval.millis=2000
+    multi.tenant.route.conf.remove.enable=true
+    proxy.key.converter.class.name=com.netease.nim.camellia.redis.proxy.conf.DefaultMultiTenantNamespaceKeyConverter
+
+    camellia_default_2026.password.100.default.route.conf={"type":"sharding","operation":{"bucketSize":2,"operationMap":{"0":{"read":"redis-sentinel://al892nsmbakVE0LUDXaCOvr5ds@10.10.86.142:26379,10.10.87.246:26379,10.10.87.229:26379/rs01","type":"rw_separate","write":"redis-sentinel://al892nsmbakVE0LUDXaCOvr5ds@10.10.86.142:26379,10.10.87.246:26379,10.10.87.229:26379/rs01"},"1":{"read":"redis-sentinel://al892nsmbakVE0aCOvr5ds@10.10.86.121:26379,10.10.86.12:26379,10.10.86.118:26379/rs02","type":"rw_separate","write":"redis-sentinel://al892nsmbakVE0aCOvr5ds@10.10.86.121:26379,10.10.86.12:26379,10.10.86.118:26379/rs02"}}}}
+    xteam_pass_2026.password.101.default.route.conf={"type":"sharding","operation":{"bucketSize":2,"operationMap":{"0":{"read":"redis-sentinel://al892nsmbakVE0LUDXaCOvr5ds@10.10.86.142:26379,10.10.87.246:26379,10.10.87.229:26379/rs01","type":"rw_separate","write":"redis-sentinel://al892nsmbakVE0LUDXaCOvr5ds@10.10.86.142:26379,10.10.87.246:26379,10.10.87.229:26379/rs01"},"1":{"read":"redis-sentinel://al892nsmbakVE0aCOvr5ds@10.10.86.121:26379,10.10.86.12:26379,10.10.86.118:26379/rs02","type":"rw_separate","write":"redis-sentinel://al892nsmbakVE0aCOvr5ds@10.10.86.121:26379,10.10.86.12:26379,10.10.86.118:26379/rs02"}}}}
+    payment_pass_2026.password.102.default.route.conf={"type":"sharding","operation":{"bucketSize":2,"operationMap":{"0":{"read":"redis-sentinel://al892nsmbakVE0LUDXaCOvr5ds@10.10.86.142:26379,10.10.87.246:26379,10.10.87.229:26379/rs01","type":"rw_separate","write":"redis-sentinel://al892nsmbakVE0LUDXaCOvr5ds@10.10.86.142:26379,10.10.87.246:26379,10.10.87.229:26379/rs01"},"1":{"read":"redis-sentinel://al892nsmbakVE0aCOvr5ds@10.10.86.121:26379,10.10.86.12:26379,10.10.86.118:26379/rs02","type":"rw_separate","write":"redis-sentinel://al892nsmbakVE0aCOvr5ds@10.10.86.121:26379,10.10.86.12:26379,10.10.86.118:26379/rs02"}}}}
+    search_pass_2026.password.103.default.route.conf={"type":"sharding","operation":{"bucketSize":2,"operationMap":{"0":{"read":"redis-sentinel://al892nsmbakVE0LUDXaCOvr5ds@10.10.86.142:26379,10.10.87.246:26379,10.10.87.229:26379/rs01","type":"rw_separate","write":"redis-sentinel://al892nsmbakVE0LUDXaCOvr5ds@10.10.86.142:26379,10.10.87.246:26379,10.10.87.229:26379/rs01"},"1":{"read":"redis-sentinel://al892nsmbakVE0aCOvr5ds@10.10.86.121:26379,10.10.86.12:26379,10.10.86.118:26379/rs02","type":"rw_separate","write":"redis-sentinel://al892nsmbakVE0aCOvr5ds@10.10.86.121:26379,10.10.86.12:26379,10.10.86.118:26379/rs02"}}}}
+    
   camellia-redis-proxy-standalone.properties: |-
     port=6380
     application.name=camellia-redis-proxy-standalone
@@ -316,6 +388,48 @@ data:
     proxy.plugin.list=monitorPlugin,bigKeyPlugin,hotKeyPlugin
 
     dynamic.conf.reload.interval.seconds=2
+
+    route.conf.provider=multi_tenants_v1
+    multi.tenant.route.default.bid=101
+    multi.tenant.route.default.bgroup=prod
+    multi.tenant.route.conf.reload.interval.millis=2000
+    multi.tenant.route.conf.remove.enable=true
+
+    svcOrderPwd.password.101.prod.route.conf={"type":"sharding","operation":{"bucketSize":3,"operationMap":{"0":{"read":"redis://@redis-pool-1:6379","type":"rw_separate","write":"redis://@redis-pool-1:6379"},"1":{"read":"redis://@redis-pool-2:6379","type":"rw_separate","write":"redis://@redis-pool-2:6379"},"2":{"read":"redis://@redis-pool-3:6379","type":"rw_separate","write":"redis://@redis-pool-3:6379"}}}}
+    svcPaymentPwd.password.102.prod.route.conf={"type":"sharding","operation":{"bucketSize":3,"operationMap":{"0":{"read":"redis://@redis-pool-4:6379","type":"rw_separate","write":"redis://@redis-pool-4:6379"},"1":{"read":"redis://@redis-pool-5:6379","type":"rw_separate","write":"redis://@redis-pool-5:6379"},"2":{"read":"redis://@redis-pool-6:6379","type":"rw_separate","write":"redis://@redis-pool-6:6379"}}}}
+    svcSearchPwd.password.103.prod.route.conf={"type":"sharding","operation":{"bucketSize":3,"operationMap":{"0":{"read":"redis://@redis-pool-7:6379","type":"rw_separate","write":"redis://@redis-pool-7:6379"},"1":{"read":"redis://@redis-pool-8:6379","type":"rw_separate","write":"redis://@redis-pool-8:6379"},"2":{"read":"redis://@redis-pool-9:6379","type":"rw_separate","write":"redis://@redis-pool-9:6379"}}}}
+
+  # ======================
+  # CLUSTER - SHARED AUTH + KEY ROUTING
+  # mỗi service auth bằng password riêng; key routing theo hash/tag trong từng tenant route
+  # ======================
+  camellia-redis-proxy-cluster-shared-auth-key-routing.properties: |-
+    port=6380
+    application.name=camellia-redis-proxy-cluster-shared-auth-key-routing
+    proxy.mode=cluster
+    proxy.cluster.mode.enable=true
+    cluster.mode.provider.class.name=com.netease.nim.camellia.redis.proxy.cluster.provider.ConsensusClusterModeProvider
+    proxy.cluster.mode.command.move.enable=true
+    proxy.cluster.mode.command.move.always=true
+    cluster.mode.consensus.leader.selector.class.name=com.netease.nim.camellia.redis.proxy.cluster.provider.RedisConsensusLeaderSelector
+    redis.consensus.leader.selector.redis.url=redis://@camellia-cluster-shared-auth-key-routing-consensus-redis:6379
+    redis.consensus.leader.selector.redis.key=camellia:proxy:leader:shared-auth-key-routing:v1
+
+    cport=16380
+    cport.password=camellia_cport_pass
+    console.port=16378
+    netty.transport.mode=auto
+
+    monitor.enable=true
+    monitor.interval.seconds=10
+    proxy.plugin.list=monitorPlugin,bigKeyPlugin,hotKeyPlugin
+
+    dynamic.conf.reload.interval.seconds=2
+    redis.conf.sharding.func=com.netease.nim.camellia.core.client.env.CRC16HashTagShardingFunc
+    redis.conf.preheat=true
+    redis.conf.close.idle.connection=true
+    redis.conf.check.idle.connection.threshold.seconds=300
+    redis.conf.close.idle.connection.delay.seconds=30
 
     route.conf.provider=multi_tenants_v1
     multi.tenant.route.default.bid=101
