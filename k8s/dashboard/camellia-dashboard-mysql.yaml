@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: camellia-dashboard-mysql
+  labels:
+    app: camellia-dashboard-mysql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: camellia-dashboard-mysql
+  template:
+    metadata:
+      labels:
+        app: camellia-dashboard-mysql
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.4
+          args:
+            - --innodb_use_native_aio=0
+            - --character-set-server=utf8mb4
+            - --collation-server=utf8mb4_unicode_ci
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: camellia-dashboard-secret
+                  key: mysql-root-password
+            - name: MYSQL_DATABASE
+              value: camellia
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1"
+          ports:
+            - containerPort: 3306
+              name: mysql
+          readinessProbe:
+            tcpSocket:
+              port: 3306
+            initialDelaySeconds: 20
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: 3306
+            initialDelaySeconds: 60
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: camellia-dashboard-mysql
+spec:
+  selector:
+    app: camellia-dashboard-mysql
+  ports:
+    - name: mysql
+      port: 3306
+      targetPort: 3306

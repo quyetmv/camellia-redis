@@ -1,0 +1,1017 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-pool-1
+  labels:
+    app: redis-pool-1
+    component: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-pool-1
+  template:
+    metadata:
+      labels:
+        app: redis-pool-1
+        component: redis
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9121"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: redis
+          image: redis:7.2-alpine
+          args: 
+            - redis-server
+            - --appendonly
+            - "yes"
+            - --maxmemory
+            - "7gb"
+            - --maxmemory-policy
+            - allkeys-lru
+          resources:
+            requests:
+              memory: "100Mi"
+              cpu: "100m"
+            limits:
+              memory: "8Gi"
+              cpu: "4"
+          ports:
+            - containerPort: 6379
+              name: redis
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+        - name: redis-exporter
+          image: oliver006/redis_exporter:v1.82.0
+          args:
+            - --redis.addr=redis://localhost:6379
+            - --web.listen-address=:9121
+            - --web.telemetry-path=/metrics
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+          ports:
+            - containerPort: 9121
+              name: metrics
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: 9121
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      volumes:
+        - name: redis-data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-pool-1
+  labels:
+    app: redis-pool-1
+    app.kubernetes.io/name: redis-backend
+    monitoring.redis.io/enabled: "true"
+    redis_backend: redis-pool-1
+    deployment: redis-pool-1
+spec:
+  type: ClusterIP
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+      protocol: TCP
+    - name: metrics
+      port: 9121
+      targetPort: 9121
+      protocol: TCP
+  selector:
+    app: redis-pool-1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-pool-2
+  labels:
+    app: redis-pool-2
+    component: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-pool-2
+  template:
+    metadata:
+      labels:
+        app: redis-pool-2
+        component: redis
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9121"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: redis
+          image: redis:7.2-alpine
+          args: 
+            - redis-server
+            - --appendonly
+            - "yes"
+            - --maxmemory
+            - "7gb"
+            - --maxmemory-policy
+            - allkeys-lru
+          resources:
+            requests:
+              memory: "100Mi"
+              cpu: "100m"
+            limits:
+              memory: "8Gi"
+              cpu: "4"
+          ports:
+            - containerPort: 6379
+              name: redis
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+        - name: redis-exporter
+          image: oliver006/redis_exporter:v1.82.0
+          args:
+            - --redis.addr=redis://localhost:6379
+            - --web.listen-address=:9121
+            - --web.telemetry-path=/metrics
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+          ports:
+            - containerPort: 9121
+              name: metrics
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: 9121
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      volumes:
+        - name: redis-data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-pool-2
+  labels:
+    app: redis-pool-2
+    app.kubernetes.io/name: redis-backend
+    monitoring.redis.io/enabled: "true"
+    redis_backend: redis-pool-2
+spec:
+  type: ClusterIP
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+      protocol: TCP
+    - name: metrics
+      port: 9121
+      targetPort: 9121
+      protocol: TCP
+  selector:
+    app: redis-pool-2
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-pool-3
+  labels:
+    app: redis-pool-3
+    component: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-pool-3
+  template:
+    metadata:
+      labels:
+        app: redis-pool-3
+        component: redis
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9121"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: redis
+          image: redis:7.2-alpine
+          args: 
+            - redis-server
+            - --appendonly
+            - "yes"
+            - --maxmemory
+            - "7gb"
+            - --maxmemory-policy
+            - allkeys-lru
+          resources:
+            requests:
+              memory: "100Mi"
+              cpu: "100m"
+            limits:
+              memory: "8Gi"
+              cpu: "4"
+          ports:
+            - containerPort: 6379
+              name: redis
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+        - name: redis-exporter
+          image: oliver006/redis_exporter:v1.82.0
+          args:
+            - --redis.addr=redis://localhost:6379
+            - --web.listen-address=:9121
+            - --web.telemetry-path=/metrics
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+          ports:
+            - containerPort: 9121
+              name: metrics
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: 9121
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      volumes:
+        - name: redis-data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-pool-3
+  labels:
+    app: redis-pool-3
+    app.kubernetes.io/name: redis-backend
+    monitoring.redis.io/enabled: "true"
+    redis_backend: redis-pool-3
+spec:
+  type: ClusterIP
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+      protocol: TCP
+    - name: metrics
+      port: 9121
+      targetPort: 9121
+      protocol: TCP
+  selector:
+    app: redis-pool-3
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-pool-4
+  labels:
+    app: redis-pool-4
+    component: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-pool-4
+  template:
+    metadata:
+      labels:
+        app: redis-pool-4
+        component: redis
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9121"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: redis
+          image: redis:7.2-alpine
+          args: 
+            - redis-server
+            - --appendonly
+            - "yes"
+            - --maxmemory
+            - "7gb"
+            - --maxmemory-policy
+            - allkeys-lru
+          resources:
+            requests:
+              memory: "100Mi"
+              cpu: "100m"
+            limits:
+              memory: "8Gi"
+              cpu: "4"
+          ports:
+            - containerPort: 6379
+              name: redis
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+        - name: redis-exporter
+          image: oliver006/redis_exporter:v1.82.0
+          args:
+            - --redis.addr=redis://localhost:6379
+            - --web.listen-address=:9121
+            - --web.telemetry-path=/metrics
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+          ports:
+            - containerPort: 9121
+              name: metrics
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: 9121
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      volumes:
+        - name: redis-data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-pool-4
+  labels:
+    app: redis-pool-4
+    app.kubernetes.io/name: redis-backend
+    monitoring.redis.io/enabled: "true"
+    redis_backend: redis-pool-4
+spec:
+  type: ClusterIP
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+      protocol: TCP
+    - name: metrics
+      port: 9121
+      targetPort: 9121
+      protocol: TCP
+  selector:
+    app: redis-pool-4
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-pool-5
+  labels:
+    app: redis-pool-5
+    component: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-pool-5
+  template:
+    metadata:
+      labels:
+        app: redis-pool-5
+        component: redis
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9121"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: redis
+          image: redis:7.2-alpine
+          args: 
+            - redis-server
+            - --appendonly
+            - "yes"
+            - --maxmemory
+            - "7gb"
+            - --maxmemory-policy
+            - allkeys-lru
+          resources:
+            requests:
+              memory: "100Mi"
+              cpu: "100m"
+            limits:
+              memory: "8Gi"
+              cpu: "4"
+          ports:
+            - containerPort: 6379
+              name: redis
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+        - name: redis-exporter
+          image: oliver006/redis_exporter:v1.82.0
+          args:
+            - --redis.addr=redis://localhost:6379
+            - --web.listen-address=:9121
+            - --web.telemetry-path=/metrics
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+          ports:
+            - containerPort: 9121
+              name: metrics
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: 9121
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      volumes:
+        - name: redis-data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-pool-5
+  labels:
+    app: redis-pool-5
+    app.kubernetes.io/name: redis-backend
+    monitoring.redis.io/enabled: "true"
+    redis_backend: redis-pool-5
+spec:
+  type: ClusterIP
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+      protocol: TCP
+    - name: metrics
+      port: 9121
+      targetPort: 9121
+      protocol: TCP
+  selector:
+    app: redis-pool-5
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-pool-6
+  labels:
+    app: redis-pool-6
+    component: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-pool-6
+  template:
+    metadata:
+      labels:
+        app: redis-pool-6
+        component: redis
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9121"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: redis
+          image: redis:7.2-alpine
+          args: 
+            - redis-server
+            - --appendonly
+            - "yes"
+            - --maxmemory
+            - "7gb"
+            - --maxmemory-policy
+            - allkeys-lru
+          resources:
+            requests:
+              memory: "100Mi"
+              cpu: "100m"
+            limits:
+              memory: "8Gi"
+              cpu: "4"
+          ports:
+            - containerPort: 6379
+              name: redis
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+        - name: redis-exporter
+          image: oliver006/redis_exporter:v1.82.0
+          args:
+            - --redis.addr=redis://localhost:6379
+            - --web.listen-address=:9121
+            - --web.telemetry-path=/metrics
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+          ports:
+            - containerPort: 9121
+              name: metrics
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: 9121
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      volumes:
+        - name: redis-data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-pool-6
+  labels:
+    app: redis-pool-6
+    app.kubernetes.io/name: redis-backend
+    monitoring.redis.io/enabled: "true"
+    redis_backend: redis-pool-6
+spec:
+  type: ClusterIP
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+      protocol: TCP
+    - name: metrics
+      port: 9121
+      targetPort: 9121
+      protocol: TCP
+  selector:
+    app: redis-pool-6
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-pool-7
+  labels:
+    app: redis-pool-7
+    component: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-pool-7
+  template:
+    metadata:
+      labels:
+        app: redis-pool-7
+        component: redis
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9121"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: redis
+          image: redis:7.2-alpine
+          args: 
+            - redis-server
+            - --appendonly
+            - "yes"
+            - --maxmemory
+            - "7gb"
+            - --maxmemory-policy
+            - allkeys-lru
+          resources:
+            requests:
+              memory: "100Mi"
+              cpu: "100m"
+            limits:
+              memory: "8Gi"
+              cpu: "4"
+          ports:
+            - containerPort: 6379
+              name: redis
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+        - name: redis-exporter
+          image: oliver006/redis_exporter:v1.82.0
+          args:
+            - --redis.addr=redis://localhost:6379
+            - --web.listen-address=:9121
+            - --web.telemetry-path=/metrics
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+          ports:
+            - containerPort: 9121
+              name: metrics
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: 9121
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      volumes:
+        - name: redis-data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-pool-7
+  labels:
+    app: redis-pool-7
+    app.kubernetes.io/name: redis-backend
+    monitoring.redis.io/enabled: "true"
+    redis_backend: redis-pool-7
+spec:
+  type: ClusterIP
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+      protocol: TCP
+    - name: metrics
+      port: 9121
+      targetPort: 9121
+      protocol: TCP
+  selector:
+    app: redis-pool-7
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-pool-8
+  labels:
+    app: redis-pool-8
+    component: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-pool-8
+  template:
+    metadata:
+      labels:
+        app: redis-pool-8
+        component: redis
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9121"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: redis
+          image: redis:7.2-alpine
+          args: 
+            - redis-server
+            - --appendonly
+            - "yes"
+            - --maxmemory
+            - "7gb"
+            - --maxmemory-policy
+            - allkeys-lru
+          resources:
+            requests:
+              memory: "100Mi"
+              cpu: "100m"
+            limits:
+              memory: "8Gi"
+              cpu: "4"
+          ports:
+            - containerPort: 6379
+              name: redis
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+        - name: redis-exporter
+          image: oliver006/redis_exporter:v1.82.0
+          args:
+            - --redis.addr=redis://localhost:6379
+            - --web.listen-address=:9121
+            - --web.telemetry-path=/metrics
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+          ports:
+            - containerPort: 9121
+              name: metrics
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: 9121
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      volumes:
+        - name: redis-data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-pool-8
+  labels:
+    app: redis-pool-8
+    app.kubernetes.io/name: redis-backend
+    monitoring.redis.io/enabled: "true"
+    redis_backend: redis-pool-8
+spec:
+  type: ClusterIP
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+      protocol: TCP
+    - name: metrics
+      port: 9121
+      targetPort: 9121
+      protocol: TCP
+  selector:
+    app: redis-pool-8
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-pool-9
+  labels:
+    app: redis-pool-9
+    component: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-pool-9
+  template:
+    metadata:
+      labels:
+        app: redis-pool-9
+        component: redis
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9121"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: redis
+          image: redis:7.2-alpine
+          args: 
+            - redis-server
+            - --appendonly
+            - "yes"
+            - --maxmemory
+            - "7gb"
+            - --maxmemory-policy
+            - allkeys-lru
+          resources:
+            requests:
+              memory: "100Mi"
+              cpu: "100m"
+            limits:
+              memory: "8Gi"
+              cpu: "4"
+          ports:
+            - containerPort: 6379
+              name: redis
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+        - name: redis-exporter
+          image: oliver006/redis_exporter:v1.82.0
+          args:
+            - --redis.addr=redis://localhost:6379
+            - --web.listen-address=:9121
+            - --web.telemetry-path=/metrics
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+          ports:
+            - containerPort: 9121
+              name: metrics
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: 9121
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      volumes:
+        - name: redis-data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-pool-9
+  labels:
+    app: redis-pool-9
+    app.kubernetes.io/name: redis-backend
+    monitoring.redis.io/enabled: "true"
+    redis_backend: redis-pool-9
+spec:
+  type: ClusterIP
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+      protocol: TCP
+    - name: metrics
+      port: 9121
+      targetPort: 9121
+      protocol: TCP
+  selector:
+    app: redis-pool-9

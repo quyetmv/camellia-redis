@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-camellia-proxy-cluster
+  labels:
+    app.kubernetes.io/name: camellia-proxy
+    app.kubernetes.io/component: metrics
+    camellia_topology: cluster
+    monitoring.camellia.io/enabled: 'true'
+  annotations:
+    prometheus.io/scrape: 'true'
+    prometheus.io/port: '16379'
+    prometheus.io/path: /prometheus
+spec:
+  type: NodePort
+  sessionAffinity: None
+  ports:
+  - name: redis
+    port: 6380
+    targetPort: 6380
+    nodePort: 30480
+  - name: console
+    port: 16378
+    targetPort: 16378
+    nodePort: 30479
+  - name: cport
+    port: 16380
+    targetPort: 16380
+  selector:
+    app: camellia-proxy-cluster

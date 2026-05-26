@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: camellia-test-runner
+  labels:
+    app: camellia-test-runner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: camellia-test-runner
+  template:
+    metadata:
+      labels:
+        app: camellia-test-runner
+    spec:
+      containers:
+        - name: runner
+          image: quyetmv/camellia-test-runner:local
+          imagePullPolicy: Always
+          command: ["python", "-u", "/app/run-tests.py"]
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: TEST_SCENARIO
+              value: both
+            - name: SHARED_AUTH_KEY_ROUTING_HOST_CLUSTER
+              value: svc-camellia-proxy-cluster-shared-auth-key-routing
+            - name: SHARED_AUTH_KEY_ROUTING_PORT_CLUSTER
+              value: "6380"
+            - name: SHARED_AUTH_KEY_ROUTING_HOST_STANDALONE
+              value: svc-camellia-proxy-standalone-shared-auth-key-routing
+            - name: SHARED_AUTH_KEY_ROUTING_PORT_STANDALONE
+              value: "6380"
+            - name: KEY_ROUTING_HOST_CLUSTER
+              value: svc-camellia-proxy-cluster-key-routing
+            - name: KEY_ROUTING_PORT_CLUSTER
+              value: "6380"
+            - name: KEY_ROUTING_HOST_STANDALONE
+              value: svc-camellia-proxy-standalone-key-routing
+            - name: KEY_ROUTING_PORT_STANDALONE
+              value: "6380"
+            - name: ADMIN_PASSWORD
+              value: camellia_admin_pass
+            - name: ORDER_PASSWORD
+              value: order-service
+            - name: PAYMENT_PASSWORD
+              value: payment-service
+            - name: SEARCH_PASSWORD
+              value: search-service
+            - name: HOT_KEY_NAME
+              value: session:{service}:{hot-user}:profile
+            - name: STRESS_CLIENTS
+              value: "200"
+            - name: STRESS_REQUESTS_PER_CLIENT
+              value: "10000"
+            - name: SET_PERCENT
+              value: "30"
+            - name: GET_PERCENT
+              value: "70"
+            - name: HOT_KEY_PERCENT
+              value: "40"
+            - name: HOT_KEY_COUNT
+              value: "4"
+            - name: KEYSPACE
+              value: "200000"
+            - name: VALUE_SIZE
+              value: "256"
+            - name: REPORT_INTERVAL_SECONDS
+              value: "5"
+            - name: SCENARIO_DELAY_SECONDS
+              value: "0"
+            - name: RUN_FOREVER
+              value: "true"
+            - name: RUN_INTERVAL_SECONDS
+              value: "60"
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: "4"
+              memory: 4Gi

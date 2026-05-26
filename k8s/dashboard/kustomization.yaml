@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - camellia-dashboard-configmap.yaml
+  - camellia-dashboard-secret.yaml
+  - camellia-dashboard-mysql.yaml
+  - camellia-dashboard-redis.yaml
+  - camellia-dashboard-deployment.yaml
+  - camellia-dashboard-service.yaml

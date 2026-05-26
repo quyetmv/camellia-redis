@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-benchmark-client
+  labels:
+    app: redis-benchmark-client
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-benchmark-client
+  template:
+    metadata:
+      labels:
+        app: redis-benchmark-client
+    spec:
+      containers:
+        - name: redis-benchmark
+          image: redis:7.2-alpine
+          command:
+            - sh
+            - -c
+            - sleep infinity
+          env:
+            - name: REDIS_BENCHMARK_HOST
+              value: svc-camellia-proxy-cluster
+            - name: REDIS_BENCHMARK_PORT
+              value: "6380"
+            - name: REDIS_BENCHMARK_NODEPORT_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: REDIS_BENCHMARK_DEPLOY_NODEPORT_PORT
+              value: "30480"
+            - name: REDIS_BENCHMARK_STS_NODEPORT_PORT
+              value: "30380"
+            - name: REDIS_BENCHMARK_KEYSPACE
+              value: "100000"
+            - name: REDIS_BENCHMARK_DATA_SIZE
+              value: "64"
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "100m"
+            limits:
+              memory: "8192Mi"
+              cpu: "8"

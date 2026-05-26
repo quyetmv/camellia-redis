@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: camellia-dashboard
+  labels:
+    app: camellia-dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: camellia-dashboard
+  template:
+    metadata:
+      labels:
+        app: camellia-dashboard
+    spec:
+      containers:
+        - name: dashboard
+          image: quyetmv/camellia-dashboard:v1.4.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              name: http
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            initialDelaySeconds: 40
+            periodSeconds: 10
+          volumeMounts:
+            - name: dashboard-config
+              mountPath: /app/config/application.yml
+              subPath: application.yml
+      volumes:
+        - name: dashboard-config
+          configMap:
+            name: camellia-dashboard-config

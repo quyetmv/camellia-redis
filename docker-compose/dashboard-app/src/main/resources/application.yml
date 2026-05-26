@@ -1,0 +1,30 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:mysql://camellia-dashboard-mysql:3306/camellia?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: camellia
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+      encoding: UTF-8
+
+camellia-redis:
+  type: LOCAL
+  local:
+    type: SIMPLE
+    resource: redis://@camellia-dashboard-redis:6379
+
+camellia-dashboard:
+  local-cache-expire-seconds: 5
+  stats-expire-seconds: 180
+  stats-key-expire-hours: 6
+  dao-cache-expire-seconds: 86400

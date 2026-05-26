@@ -1,0 +1,4 @@
+resources:
+  - ../base
+  - camellia-proxy-statefulset.yaml
+  - camellia-proxy-service.yaml

@@ -1,0 +1,171 @@
+# ============================================================================
+# CAMELLIA DASHBOARD CONFIGURATION - MULTI-TENANT SETUP
+# ============================================================================
+# This file contains the resource table configurations to be uploaded to
+# Camellia Dashboard for multi-tenancy testing
+# 
+# Upload via Dashboard API:
+# POST http://dashboard:8080/camellia/admin/resourceTable/createOrUpdate
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# TENANT 1: service-group-1 (Routes to Pool 1)
+# ----------------------------------------------------------------------------
+{
+  "bid": 1,
+  "bgroup": "service-group-1",
+  "info": "Test tenant 1 - Routes to Pool 1 only",
+  "resourceTable": {
+    "type": "simple",
+    "operation": {
+      "resource": "redis-sentinel://@10.1.10.101:26379,10.1.10.102:26379,10.1.10.103:26379/master-pool1?password=pool1-redis-password"
+    }
+  }
+}
+
+# ----------------------------------------------------------------------------
+# TENANT 2: service-group-2 (Routes to Pool 2)
+# ----------------------------------------------------------------------------
+{
+  "bid": 1,
+  "bgroup": "service-group-2",
+  "info": "Test tenant 2 - Routes to Pool 2 only",
+  "resourceTable": {
+    "type": "simple",
+    "operation": {
+      "resource": "redis-sentinel://@10.1.20.101:26379,10.1.20.102:26379,10.1.20.103:26379/master-pool2?password=pool2-redis-password"
+    }
+  }
+}
+
+# ----------------------------------------------------------------------------
+# TENANT 3: service-group-3 (Sharding across Pool 3 and 4)
+# ----------------------------------------------------------------------------
+{
+  "bid": 1,
+  "bgroup": "service-group-3",
+  "info": "Test tenant 3 - Sharding across Pool 3 and 4",
+  "resourceTable": {
+    "type": "sharding",
+    "operation": {
+      "operationMap": {
+        "0-511": "redis-sentinel://@10.1.30.101:26379,10.1.30.102:26379,10.1.30.103:26379/master-pool3?password=pool3-redis-password",
+        "512-1023": "redis-sentinel://@10.1.40.101:26379,10.1.40.102:26379,10.1.40.103:26379/master-pool4?password=pool4-redis-password"
+      },
+      "bucketSize": 1024
+    }
+  }
+}
+
+# ============================================================================
+# PASSWORD CONFIGURATION
+# ============================================================================
+# Configure these passwords in Camellia Proxy's password mapping
+# application.yml section:
+#
+# camellia-redis-proxy:
+#   password: default-password  # Default if no mapping matches
+#   
+#   # Multi-tenant password routing
+#   transpond:
+#     type: remote
+#     remote:
+#       url: http://dashboard:8080
+#       dynamic: true
+#       
+# When a client connects with a specific password, Camellia Dashboard
+# maps it to the corresponding bid/bgroup configuration.
+#
+# Password Mapping (configured in Dashboard):
+# - tenant1-password -> bid=1, bgroup=service-group-1
+# - tenant2-password -> bid=1, bgroup=service-group-2  
+# - tenant3-password -> bid=1, bgroup=service-group-3
+#
+# ============================================================================
+
+# ============================================================================
+# RATE LIMITING CONFIGURATION (Optional)
+# ============================================================================
+# Set rate limits per tenant via Dashboard API:
+# POST http://dashboard:8080/camellia/admin/rateLimit/set
+#
+# Example for tenant-1:
+{
+  "bid": 1,
+  "bgroup": "service-group-1",
+  "maxQPS": 10000,
+  "checkMillis": 1000
+}
+
+# Example for tenant-2 (lower limit):
+{
+  "bid": 1,
+  "bgroup": "service-group-2",
+  "maxQPS": 5000,
+  "checkMillis": 1000
+}
+
+# ============================================================================
+# IP WHITELIST CONFIGURATION (Optional)
+# ============================================================================
+# Restrict access per tenant via Dashboard API:
+# POST http://dashboard:8080/camellia/admin/ipChecker/set
+#
+# Example for tenant-1 (whitelist):
+{
+  "bid": 1,
+  "bgroup": "service-group-1",
+  "ipList": "10.0.0.0/8,192.168.1.0/24",
+  "type": "whitelist"
+}
+
+# ============================================================================
+# SETUP SCRIPT
+# ============================================================================
+# Use this bash script to configure Dashboard via API:
+
+#!/bin/bash
+DASHBOARD_URL="http://localhost:8080"
+
+# Tenant 1 - Pool 1
+curl -X POST "${DASHBOARD_URL}/camellia/admin/resourceTable/createOrUpdate" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "bid": 1,
+    "bgroup": "service-group-1",
+    "info": "Test tenant 1 - Routes to Pool 1",
+    "resourceTable": "{\"type\":\"simple\",\"operation\":{\"resource\":\"redis-sentinel://@10.1.10.101:26379,10.1.10.102:26379,10.1.10.103:26379/master-pool1?password=pool1-redis-password\"}}"
+  }'
+
+# Tenant 2 - Pool 2  
+curl -X POST "${DASHBOARD_URL}/camellia/admin/resourceTable/createOrUpdate" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "bid": 1,
+    "bgroup": "service-group-2",
+    "info": "Test tenant 2 - Routes to Pool 2",
+    "resourceTable": "{\"type\":\"simple\",\"operation\":{\"resource\":\"redis-sentinel://@10.1.20.101:26379,10.1.20.102:26379,10.1.20.103:26379/master-pool2?password=pool2-redis-password\"}}"
+  }'
+
+# Tenant 3 - Sharding Pool 3+4
+curl -X POST "${DASHBOARD_URL}/camellia/admin/resourceTable/createOrUpdate" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "bid": 1,
+    "bgroup": "service-group-3",
+    "info": "Test tenant 3 - Sharding across Pool 3 and 4",
+    "resourceTable": "{\"type\":\"sharding\",\"operation\":{\"operationMap\":{\"0-511\":\"redis-sentinel://@10.1.30.101:26379,10.1.30.102:26379,10.1.30.103:26379/master-pool3?password=pool3-redis-password\",\"512-1023\":\"redis-sentinel://@10.1.40.101:26379,10.1.40.102:26379,10.1.40.103:26379/master-pool4?password=pool4-redis-password\"},\"bucketSize\":1024}}"
+  }'
+
+echo "✓ Tenant configurations uploaded to Dashboard"
+
+# Set rate limits
+curl -X POST "${DASHBOARD_URL}/camellia/admin/rateLimit/set" \
+  -H "Content-Type: application/json" \
+  -d '{"bid":1,"bgroup":"service-group-1","maxQPS":10000,"checkMillis":1000}'
+
+curl -X POST "${DASHBOARD_URL}/camellia/admin/rateLimit/set" \
+  -H "Content-Type: application/json" \
+  -d '{"bid":1,"bgroup":"service-group-2","maxQPS":5000,"checkMillis":1000}'
+
+echo "✓ Rate limits configured"

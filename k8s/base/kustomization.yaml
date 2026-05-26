@@ -1,0 +1,3 @@
+resources:
+  - camellia-proxy-configmap.yaml
+  - redis-backends.yaml

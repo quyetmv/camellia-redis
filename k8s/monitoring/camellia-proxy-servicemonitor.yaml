@@ -1,0 +1,18 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: camellia-proxy
+  labels:
+    app.kubernetes.io/name: camellia-proxy
+spec:
+  targetLabels:
+    - camellia_topology
+  selector:
+    matchLabels:
+      monitoring.camellia.io/enabled: "true"
+  endpoints:
+    - port: console
+      path: /prometheus
+      scheme: http
+      interval: 5s
+      scrapeTimeout: 10s
